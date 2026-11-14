@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Space Museum | Abandoned but not Forgotten</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cairo & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: '#07152f',
+                        sky: '#3CAFE8',
+                        gold: '#FFD700',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #07152f;
+            color: white;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            transition: font-family 0.3s ease;
+        }
+
+        #orbital-network-background {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #landing-view {
+            position: relative;
+            isolation: isolate;
+        }
+
+        #landing-view > :not(.landing-photo-scatter) {
+            position: relative;
+            z-index: 1;
+        }
+
+        .landing-photo-scatter {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .landing-photo {
+            position: absolute;
+            width: clamp(100px, 16vw, 220px);
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border: 1px solid rgba(111, 196, 240, .7);
+            border-radius: 12px;
+            opacity: .7;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+        }
+
+        .landing-photo:nth-child(1) { top: 8%; left: 2%; transform: rotate(-7deg); }
+        .landing-photo:nth-child(2) { top: 15%; right: 3%; width: clamp(95px, 14vw, 190px); transform: rotate(6deg); }
+        .landing-photo:nth-child(3) { top: 43%; left: 7%; width: clamp(85px, 12vw, 165px); transform: rotate(5deg); }
+        .landing-photo:nth-child(4) { top: 48%; right: 8%; transform: rotate(-5deg); }
+        .landing-photo:nth-child(5) { bottom: 5%; left: 2%; width: clamp(90px, 13vw, 180px); transform: rotate(4deg); }
+        .landing-photo:nth-child(6) { bottom: 4%; right: 2%; width: clamp(85px, 12vw, 165px); transform: rotate(-8deg); }
+        .landing-photo:nth-child(7) { top: 4%; left: 38%; width: clamp(80px, 11vw, 150px); transform: rotate(3deg); }
+
+        @media (max-width: 700px) {
+            .landing-photo { opacity: .38; }
+            .landing-photo:nth-child(3),
+            .landing-photo:nth-child(5) { display: none; }
+        }
+
+        html[dir="rtl"] body {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        html[dir="ltr"] body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Museum Lighting / Gallery Effect */
+        .museum-lighting {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 50% 30%, rgba(60, 175, 232, 0.08) 0%, rgba(10, 31, 68, 0.7) 40%, rgba(0, 0, 0, 0.95) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Starry Background Animation */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: transparent url('data:image/svg+xml;utf8,<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="1" fill="white" opacity="0.8"/><circle cx="150" cy="50" r="1.5" fill="white" opacity="0.6"/><circle cx="80" cy="120" r="1" fill="white" opacity="0.9"/><circle cx="180" cy="180" r="2" fill="white" opacity="0.4"/></svg>') repeat;
+            animation: moveStars 100s linear infinite;
+        }
+
+        @keyframes moveStars {
+            from { background-position: 0 0; }
+            to { background-position: 1000px 500px; }
+        }
+
+        /* Ancient Space Debris Background */
+        .debris-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            /* دمج صور لمعدات وآلات ومركبات فضائية من أرشيف ناسا (محطة سكايلاب وتلسكوب هابل) */
+            background-image: 
+                url('https://upload.wikimedia.org/wikipedia/commons/0/03/Skylab_in_orbit_%28SL-4%29.jpg'),
+                url('https://upload.wikimedia.org/wikipedia/commons/e/ea/Hubble_Space_Telescope_overhead_after_capture.jpg');
+            background-size: cover, cover;
+            background-position: center, center;
+            background-blend-mode: hard-light;
+            /* إضافة الطابع القديم والصدأ عبر الفلاتر */
+            opacity: 0.18;
+            filter: sepia(100%) hue-rotate(5deg) contrast(150%) brightness(60%) saturate(150%);
+            animation: driftDebris 120s linear infinite alternate;
+        }
+
+        @keyframes driftDebris {
+            from { transform: scale(1) translate(0, 0); }
+            to { transform: scale(1.1) translate(-30px, 15px); }
+        }
+
+        /* Animated Floating Space Junk */
+        @keyframes floatJunk {
+            0% { transform: translate(0, 0) rotate(var(--r-start)); }
+            100% { transform: translate(var(--x-end), var(--y-end)) rotate(var(--r-end)); }
+        }
+
+        /* Glowing Dot Marker */
+        .artifact-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6);
+            transition: all 0.3s ease;
+            z-index: 20;
+        }
+
+        .artifact-marker:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            box-shadow: 0 0 25px 10px rgba(255, 215, 0, 0.9);
+        }
+
+        .marker-ping {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #FFD700;
+            border-radius: 50%;
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+            opacity: 0.75;
+        }
+
+        /* Planet Surfaces */
+        .planet-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            margin: 2rem auto;
+            box-shadow: inset -30px -30px 50px rgba(0,0,0,0.8), 0 0 40px rgba(60, 175, 232, 0.2);
+            transition: all 1s ease-in-out;
+        }
+
+        @media (min-width: 768px) {
+            .planet-container {
+                width: 500px;
+                height: 500px;
+            }
+        }
+
+        .planet-moon {
+            background: radial-gradient(circle at 30% 30%, #d4d4d8, #52525b, #18181b);
+        }
+
+        .planet-mars {
+            background: radial-gradient(circle at 30% 30%, #fca5a5, #b91c1c, #450a0a);
+        }
+
+        /* Glassmorphism for Panels */
+        .glass-panel {
+            background: rgba(10, 31, 68, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(60, 175, 232, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(60, 175, 232, 0.1);
+        }
+
+        .display-case {
+            background: linear-gradient(145deg, rgba(10, 31, 68, 0.9), rgba(5, 15, 34, 0.95));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 2px solid rgba(60, 175, 232, 0.5);
+            box-shadow: 0 0 40px rgba(60, 175, 232, 0.3), inset 0 0 30px rgba(255, 215, 0, 0.05);
+        }
+
+        /* Logo Glow Animation */
+        @keyframes logoPulse {
+            0% { filter: drop-shadow(0 0 5px rgba(60, 175, 232, 0.4)); }
+            50% { filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6)); }
+            100% { filter: drop-shadow(0 0 5px rgba(60, 175, 232, 0.4)); }
+        }
+        .logo-icon {
+            animation: logoPulse 4s infinite alternate;
+        }
+
+        /* Scanning Animation for Modal */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(60, 175, 232, 0.8);
+            box-shadow: 0 0 15px 2px rgba(60, 175, 232, 0.8);
+            animation: scanMove 2s ease-in-out infinite alternate;
+            z-index: 10;
+            opacity: 0;
+        }
+
+        @keyframes scanMove {
+            0% { top: 0; opacity: 1; }
+            100% { top: 100%; opacity: 1; }
+        }
+
+        /* Intro Screen Background */
+        #intro-view {
+            background-color: #030a16;
+        }
+    </style>
+<style id="ah-unified">
+/* ===== AstroHeritage unified design system (injected into both modules) ===== */
+:root{
+  --ah-navy:#07152f; --ah-navy-2:#0c2347; --ah-navy-3:#173d68; --ah-abyss:#030914;
+  --ah-sky:#3cafe8; --ah-cyan:#00f0ff; --ah-gold:#ffd700; --ah-purple:#b026ff; --ah-pink:#ff2a6d;
+  --ah-text:#eef7ff; --ah-muted:#9db4cc; --ah-line:rgba(60,175,232,.32);
+  --ah-glass:rgba(12,35,71,.66); --ah-radius:18px;
+  --bg-deep-space:#07152f; --bg-panel:#0c2347;
+}
+html,body{background:var(--ah-navy)!important;color:var(--ah-text);}
+body{
+  background:radial-gradient(ellipse at 50% -20%,#173d68 0%,#07152f 55%,#030914 100%) fixed !important;
+  -webkit-font-smoothing:antialiased;
+}
+html[dir="ltr"] body{font-family:Inter,Cairo,system-ui,sans-serif!important;}
+html[dir="rtl"] body{font-family:Cairo,Inter,system-ui,sans-serif!important;}
+.font-tech{font-family:Inter,Cairo,system-ui,sans-serif!important;letter-spacing:.04em;}
+
+/* shared surfaces */
+.glass-panel{background:var(--ah-glass)!important;border-color:var(--ah-line)!important;}
+.display-case{background:linear-gradient(145deg,rgba(12,35,71,.94),rgba(5,16,36,.97))!important;border-color:rgba(60,175,232,.5)!important;}
+.details-panel{background-color:rgba(12,35,71,.96)!important;}
+.map-container{background:radial-gradient(circle at center,#102a4e 0%,#07152f 100%)!important;}
+.grid-overlay{background-image:linear-gradient(rgba(60,175,232,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(60,175,232,.05) 1px,transparent 1px)!important;}
+
+/* shared scrollbars */
+*{scrollbar-width:thin;scrollbar-color:rgba(60,175,232,.45) transparent;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:rgba(3,9,20,.6)!important;}
+::-webkit-scrollbar-thumb{background:rgba(60,175,232,.35)!important;border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:var(--ah-sky)!important;}
+
+/* shared focus + selection */
+:focus-visible{outline:2px solid var(--ah-gold);outline-offset:2px;}
+::selection{background:rgba(60,175,232,.4);color:#fff;}
+
+/* the platform shell owns navigation + language: hide each module's own chrome */
+#ah-inner-header,#ah-inner-nav{display:none!important;}
+
+/* with the header gone, give the museum views their own top breathing room */
+#landing-view{margin-top:0!important;}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
+
+
+</style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+    <canvas id="orbital-network-background" aria-hidden="true"></canvas>
+
+    <!-- Intro/Splash Screen (Orbital Network Style) -->
+    <section id="intro-view" class="hidden fixed inset-0 z-[100] flex flex-col items-center justify-center transition-all duration-500 opacity-100 overflow-hidden">
+        <!-- Subtle gradient overlay to blend corners -->
+        <div class="absolute inset-0 bg-radial-gradient from-transparent to-[#030a16] z-0 pointer-events-none opacity-80" style="background: radial-gradient(circle, transparent 20%, #030a16 90%);"></div>
+
+        <div class="relative z-10 flex flex-col items-center text-center space-y-6 p-4">
+            <!-- Large Logo -->
+            <div class="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center bg-navy/80 rounded-full border-2 border-sky/40 shadow-[0_0_40px_rgba(60,175,232,0.4)] glass-panel logo-icon mb-6">
+                <div class="absolute bottom-0 w-full h-1/2 bg-sky/20 rounded-b-full border-t border-sky/50"></div>
+                <svg class="w-14 h-14 sm:w-20 sm:h-20 text-gold relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" class="text-sky"></path>
+                </svg>
+            </div>
+            
+            <h1 class="text-5xl sm:text-7xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky to-white tracking-widest uppercase">
+                Astro<span class="text-gold">Heritage</span>
+            </h1>
+            <p data-i18n="introSubtitle" class="text-lg sm:text-2xl text-sky font-light tracking-[0.2em] sm:tracking-[0.4em] uppercase mt-4 drop-shadow-[0_0_8px_rgba(60,175,232,0.8)]">
+                Museum of Forgotten Artifacts
+            </p>
+
+            <button onclick="app.enterMuseum()" class="mt-16 group relative px-10 py-4 sm:px-12 sm:py-5 font-bold text-lg sm:text-xl rounded-full overflow-hidden bg-transparent border-2 border-sky text-sky hover:text-navy transition-all duration-500 shadow-[0_0_20px_rgba(60,175,232,0.4)] hover:shadow-[0_0_40px_rgba(60,175,232,0.8)]">
+                <span class="absolute inset-0 w-full h-full bg-sky transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-out origin-left rtl:origin-right"></span>
+                <span class="relative flex items-center justify-center gap-4">
+                    <span data-i18n="enterBtn">Enter Museum</span>
+                    <svg class="w-6 h-6 transform group-hover:translate-x-2 rtl:group-hover:-translate-x-2 rtl:rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Header / Brand Logo -->
+    <header id="ah-inner-header" class="fixed top-0 left-0 w-full z-50 p-4 sm:p-6 pointer-events-none flex justify-between items-start">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 pointer-events-auto group cursor-pointer">
+            <div class="relative w-12 h-12 flex items-center justify-center bg-navy/80 rounded-full border border-sky/40 shadow-[0_0_15px_rgba(60,175,232,0.3)] glass-panel logo-icon overflow-hidden">
+                <!-- Planet silhouette -->
+                <div class="absolute bottom-0 w-full h-1/2 bg-sky/20 rounded-b-full border-t border-sky/50"></div>
+                <!-- Satellite/Artifact vector -->
+                <svg class="w-6 h-6 text-gold relative z-10 transform group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" class="text-sky"></path>
+                </svg>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-xl sm:text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-sky uppercase" style="letter-spacing: 0.15em;">Astro<span class="text-gold">Heritage</span></span>
+                <span class="text-xs text-gray-400 font-medium tracking-widest uppercase" data-i18n="logoSub">Space Museum</span>
+            </div>
+        </div>
+
+        <!-- Language Toggle Button (Moved slightly to accommodate logo) -->
+        <div class="flex items-center gap-3">
+            <button onclick="app.toggleLang()" class="pointer-events-auto glass-panel px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-white font-bold hover:text-gold transition-colors shadow-lg border border-sky/40 flex items-center gap-2 text-sm sm:text-base">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+                <span id="lang-btn-text" data-i18n="langBtn">عربي</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Background Decoration -->
+    <div class="stars"></div>
+    <div class="debris-bg"></div>
+    <div class="museum-lighting"></div>
+    <div class="fixed top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-navy opacity-80 pointer-events-none z-0"></div>
+
+    <!-- Main Application Container -->
+    <main class="relative z-10 flex-grow flex flex-col items-center justify-center p-4 sm:p-8 w-full max-w-7xl mx-auto">
+        
+        <!-- View 1: Landing Page -->
+        <section id="landing-view" class="flex flex-col items-center text-center space-y-12 transition-all duration-500 w-full mt-10">
+            <div class="landing-photo-scatter" aria-hidden="true">
+                <img class="landing-photo" src="1.jpg" alt="">
+                <img class="landing-photo" src="2.jpg" alt="">
+                <img class="landing-photo" src="3.jpg" alt="">
+                <img class="landing-photo" src="4.jpg" alt="">
+                <img class="landing-photo" src="5.jpg" alt="">
+                <img class="landing-photo" src="6.jpg" alt="">
+                <img class="landing-photo" src="7.jpg" alt="">
+            </div>
+            <div class="space-y-4">
+                <h1 data-i18n="mainTitle" class="text-5xl sm:text-7xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-sky via-white to-sky drop-shadow-[0_0_15px_rgba(60,175,232,0.6)]">
+                    Space Museum
+                </h1>
+                <h2 data-i18n="subTitle" class="text-2xl sm:text-3xl font-light text-gray-300">Abandoned, but not forgotten</h2>
+            </div>
+            
+            <div class="max-w-2xl glass-panel p-8 rounded-2xl">
+                <p data-i18n="quote" class="text-2xl sm:text-3xl font-semibold italic text-gold leading-relaxed">
+                    "We didn't leave behind junk... we left a legacy and a history telling the story of our reach for the stars."
+                </p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-6 mt-8 w-full sm:w-auto px-4">
+                <button onclick="window.parent.postMessage({ah:'goto',view:'map'},'*')" class="group relative px-10 py-4 font-bold text-lg rounded-full overflow-hidden bg-transparent border-2 border-gold text-gold hover:text-navy transition-all duration-300 w-full sm:w-auto">
+                    <span class="absolute inset-0 w-full h-full bg-gold transform ltr:-translate-x-full rtl:translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out"></span>
+                    <span class="relative flex items-center justify-center gap-3"><span data-i18n="mapBtn">Artifact Map</span></span>
+                </button>
+            </div>
+        </section>
+
+        <!-- View 2: Map View -->
+        <section id="map-view" class="hidden flex-col items-center justify-start w-full transition-all duration-500 opacity-0 relative pt-10">
+            <button onclick="app.goHome()" class="absolute top-0 ltr:right-0 rtl:left-0 text-sky hover:text-white flex items-center gap-2 transition-colors">
+                <svg class="w-6 h-6 transform rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span data-i18n="backBtn" class="font-bold tracking-wide text-sm">Return to Main Hall</span>
+            </button>
+
+            <div class="text-center mb-4 mt-8 sm:mt-0">
+                <h2 id="map-title" class="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky to-white tracking-wider">
+                    Gallery
+                </h2>
+                <p data-i18n="site" class="text-gold text-lg mt-2 font-semibold">Museum Excavation Site</p>
+            </div>
+
+            <!-- Environmental HUD Dashboard (UPDATED: Visible on all screens & RTL Support) -->
+            <div id="env-hud" class="absolute top-20 ltr:left-0 rtl:right-0 ltr:sm:left-4 rtl:sm:right-4 glass-panel p-3 sm:p-4 rounded-xl ltr:border-l-4 rtl:border-r-4 border-sky w-40 sm:w-64 transform transition-all duration-700 z-20 opacity-0 ltr:-translate-x-full rtl:translate-x-full">
+                <h3 class="text-sky font-bold text-xs sm:text-sm mb-3 flex items-center gap-2 uppercase tracking-widest">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <span data-i18n="envTitle">Env. Data</span>
+                </h3>
+                <div class="space-y-3 text-xs sm:text-sm">
+                    <div>
+                        <p class="text-gray-400 text-[10px] sm:text-xs" data-i18n="envTemp">Surface Temp</p>
+                        <p id="hud-temp" class="text-white font-mono font-bold text-base sm:text-lg">--</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400 text-[10px] sm:text-xs" data-i18n="envHazard">Primary Hazard</p>
+                        <p id="hud-hazard" class="text-[#fca5a5] font-semibold">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Planet/Map Area -->
+            <div id="planet" class="planet-container relative"></div>
+
+            <p class="text-gray-300 text-base mt-8 max-w-lg text-center font-medium bg-navy/50 p-4 rounded-xl border border-sky/20">
+                <span data-i18n="hintStart">Click on the glowing artifacts</span>
+                <span class="inline-block w-3 h-3 bg-gold rounded-full shadow-[0_0_8px_#FFD700] align-middle mx-1"></span> 
+                <span data-i18n="hintEnd">to open the display case and read its story.</span>
+            </p>
+        </section>
+
+
+    </main>
+
+    <!-- Modal: Artifact Registry -->
+    <div id="artifact-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 pt-10">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="app.closeModal()"></div>
+        
+        <!-- Modal Content (Display Case) -->
+        <div class="relative display-case rounded-2xl w-full max-w-3xl overflow-y-auto max-h-[90vh] transform transition-all scale-95 opacity-0 custom-scrollbar" id="modal-card">
+            
+            <!-- Image Header -->
+            <div class="relative w-full h-48 sm:h-64 border-b-2 border-sky/30 overflow-hidden">
+                <div class="scan-line" id="scan-line"></div>
+                <!-- تمت إزالة mix-blend-screen و opacity-80 لتكون الصورة واضحة تماماً -->
+                <img id="modal-image" src="" alt="Artifact" class="w-full h-full object-cover rounded-t-xl brightness-110">
+                <!-- تم تخفيف التدرج اللوني السفلي لعدم طمس الصورة -->
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050f22] via-transparent to-transparent opacity-80"></div>
+                <button onclick="app.closeModal()" class="absolute top-4 ltr:right-4 rtl:left-4 text-gray-300 hover:text-white bg-black/50 rounded-full p-1 transition-colors z-10">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Header Info -->
+            <div class="relative px-6 sm:px-8 -mt-12 z-10 pb-4">
+                <h3 class="text-gold text-sm font-bold tracking-widest mb-2 flex items-center gap-2 drop-shadow-md">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v1a2 2 0 01-2 2h-1v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H6a2 2 0 01-2-2v-1H3a1 1 0 110-2h1v-2H3a1 1 0 110-2h1V6a2 2 0 012-2h1V3a1 1 0 011-1zm0 5a3 3 0 100 6 3 3 0 000-6z" clip-rule="evenodd"></path></svg>
+                    <span data-i18n="registryTitle">Artifact Registry</span>
+                </h3>
+                <h2 id="modal-name" class="text-3xl sm:text-4xl font-black text-white leading-tight drop-shadow-[0_0_10px_rgba(60,175,232,0.8)]">Artifact Name</h2>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 sm:px-8 pb-8 space-y-6">
+                <!-- Integrity Meter (NEW) -->
+                <div class="bg-black/30 p-4 rounded-xl border border-gray-700">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-gray-300 text-sm font-bold uppercase tracking-wider" data-i18n="integrityLabel">Structural Integrity</span>
+                        <span id="modal-integrity-text" class="text-sky font-mono font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="modal-integrity-bar" class="bg-gradient-to-r from-[#fca5a5] via-gold to-sky h-2.5 rounded-full transition-all duration-1000 w-0"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-sky/10 p-4 rounded-xl border border-sky/30 shadow-inner">
+                        <p data-i18n="missionLabel" class="text-sky text-sm font-bold mb-1">Space Mission</p>
+                        <p id="modal-mission" class="font-black text-xl text-gray-100">Mission Name</p>
+                    </div>
+                    <div class="bg-sky/10 p-4 rounded-xl border border-sky/30 shadow-inner">
+                        <p data-i18n="dateLabel" class="text-sky text-sm font-bold mb-1">Date Added (Abandoned)</p>
+                        <p id="modal-date" class="font-black text-xl text-gray-100">Date</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 bg-navy/40 p-5 rounded-xl ltr:border-l-4 rtl:border-r-4 border-gold">
+                    <h4 class="text-gold text-lg font-bold flex items-center gap-2" data-i18n="storyLabel">
+                        Museum Story (Why did we leave it?)
+                    </h4>
+                    <div class="flex flex-col sm:flex-row gap-4 mt-3">
+                        <img id="modal-analysis-img" src="" alt="Historical Documentation" class="w-full sm:w-1/3 h-40 sm:h-auto object-cover rounded-lg border border-gold/30 shadow-[0_0_10px_rgba(255,215,0,0.15)]">
+                        <p id="modal-analysis" class="text-gray-200 text-sm sm:text-base leading-relaxed font-medium flex-1">
+                            Details...
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 bg-navy/40 p-5 rounded-xl ltr:border-l-4 rtl:border-r-4 border-sky">
+                    <h4 class="text-sky text-lg font-bold flex items-center gap-2" data-i18n="statusLabel">
+                        Preservation Status (How does it look now?)
+                    </h4>
+                    <p id="modal-status" class="text-gray-300 text-base sm:text-lg leading-relaxed">
+                        Details...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic & Localization -->
+    <script>
+        const i18n = {
+            en: {
+                pageTitle: "Museum of Forgotten Artifacts | Space Heritage",
+                logoSub: "Space Museum",
+                mainTitle: "Museum of Forgotten Artifacts",
+                subTitle: "Echoes of a silent frontier",
+                introSubtitle: "Museum of Forgotten Artifacts",
+                enterBtn: "Enter Museum",
+                quote: "\"Beyond the veil of stars lie the silent witnesses of our greatest leaps. They are not junk drifting in the void; they are the sleeping ghosts of human ambition, waiting for you to awaken their stories.\"",
+                mapBtn: "Artifact Map",
+                backBtn: "Return to Main Hall",
+                destination: "Destination",
+                site: "Museum Excavation Site",
+                hintStart: "Click on the glowing artifacts",
+                hintEnd: "to open the display case and read its story.",
+                registryTitle: "Artifact Registry",
+                missionLabel: "Space Mission",
+                dateLabel: "Date Added (Abandoned)",
+                storyLabel: "Museum Story (Why did we leave it?)",
+                statusLabel: "Preservation Status (How does it look now?)",
+                integrityLabel: "Structural Integrity",
+                envTitle: "Environment Data",
+                envTemp: "Surface Temp",
+                envHazard: "Primary Hazard",
+                moonGalleryTitle: "Moon Gallery",
+                marsGalleryTitle: "Mars Gallery",
+                langBtn: "عربي",
+            },
+            ar: {
+                pageTitle: "متحف الآثار المنسية | التراث الفضائي",
+                logoSub: "متحف الفضاء",
+                mainTitle: "متحف الآثار المنسية",
+                subTitle: "أصداء من حدود صامتة",
+                introSubtitle: "متحف الآثار المنسية",
+                enterBtn: "دخول المتحف",
+                quote: "\"خلف ستار النجوم، ترقد شواهد صامتة على أعظم قفزاتنا. إنها ليست مجرد خردة تسبح في الفراغ؛ بل هي أشباح طموحنا البشري النائمة، تنتظر من يوقظ حكاياتها.\"",
+                mapBtn: "خريطة الآثار",
+                backBtn: "العودة للقاعة الرئيسية",
+                destination: "الوجهة",
+                site: "موقع التنقيب المتحفي",
+                hintStart: "اضغط على القطع المضيئة",
+                hintEnd: "لفتح خزانة العرض الخاصة بالأثر وقراءة قصته.",
+                registryTitle: "سجل المقتنيات الأثرية",
+                missionLabel: "المهمة الفضائية",
+                dateLabel: "تاريخ الانضمام للمتحف (الترك)",
+                storyLabel: "القصة المتحفية (لماذا تركناه؟)",
+                statusLabel: "حالة الحفظ (كيف يبدو الآن؟)",
+                integrityLabel: "السلامة الهيكلية للأثر",
+                envTitle: "بيانات البيئة",
+                envTemp: "درجة حرارة السطح",
+                envHazard: "الخطر البيئي الأساسي",
+                moonGalleryTitle: "قاعة عرض القمر",
+                marsGalleryTitle: "قاعة عرض المريخ",
+                langBtn: "English",
+            }
+        };
+
+        const artifactsData = {
+            moon: [
+                {
+                    id: 'm1',
+                    image: '4.jpg',
+                    analysisImage: '4.jpg',
+                    x: '30%', y: '45%',
+                    integrity: 85,
+                    en: {
+                        name: 'Apollo 11 Descent Stage',
+                        mission: 'Apollo 11',
+                        date: 'July 21, 1969',
+                        analysis: 'When Neil and Buzz were ready to go home, they had a huge problem: weight. The module they landed in was just too heavy to blast off with the fuel they had left. The solution? Break the ship in half! They left the bottom part behind, using it as a launchpad to shoot the top half back into space. That bottom piece is still sitting there right now, exactly where they left it.',
+                        status: 'Fifty years on the moon changes things. The bright gold foil that used to wrap this base has been completely bleached white by the harsh sun. But underneath? The tough titanium frame hasn\'t moved an inch. It looks like a futuristic ruin, perfectly frozen in time because there\'s no wind or rain to wear it down.'
+                    },
+                    ar: {
+                        name: 'منصة هبوط أبولو 11',
+                        mission: 'أبولو 11',
+                        date: '21 يوليو 1969',
+                        analysis: 'لما نيل وباز قرروا يرجعوا الأرض، واجهتهم مشكلة كبيرة: الوزن! المركبة اللي نزلوا بيها كانت تقيلة جداً على كمية الوقود اللي فاضلة معاهم. الحل؟ يقسموا المركبة نصين! سابوا الجزء السفلي واستخدموه كمنصة إطلاق عشان يطيروا بالنص التاني للفضاء. الجزء السفلي ده لسه مكانه لحد اللحظة دي، شاهد على أول خطوة للبشر.',
+                        status: 'تخيل حاجة متسابة 50 سنة على القمر! الرقائق الدهبية اللامعة اللي كانت بتغطي القاعدة دي اتحولت للون أبيض باهت بسبب أشعة الشمس القاسية. لكن من جوه؟ الهيكل المصنوع من التيتانيوم ماتحركش سنتي واحد. واقف مكانه زي أثر من المستقبل، متجمد في الزمن لأن مفيش هناك لا هوا ولا مطر يبوظه.'
+                    }
+                },
+                {
+                    id: 'm2',
+                    image: '8.jpg',
+                    analysisImage: '9.jpg',
+                    x: '65%', y: '30%',
+                    integrity: 60,
+                    en: {
+                        name: 'Lunar Roving Vehicle (LRV)',
+                        mission: 'Apollo 15',
+                        date: 'August 2, 1971',
+                        analysis: 'Imagine taking the ultimate road trip on the moon, driving over craters and kicking up moon dust. Sounds amazing, right? But here\'s the catch: you can\'t bring the car back. To save enough rocket fuel for the trip home, the Apollo 15 crew had to leave their $38-million electric rover parked forever. They just left the keys—and their tire tracks—behind.',
+                        status: 'It looks exactly like it did the day they parked it, just a lot dustier. Without any weather on the moon to wash it away, the abrasive lunar dust has completely coated the seats and controls. The batteries are totally dead, and the plastic parts are super brittle from the cold space vacuum, but the tires are still ready to roll.'
+                    },
+                    ar: {
+                        name: 'عربة التجول القمرية (LRV)',
+                        mission: 'أبولو 15',
+                        date: '2 أغسطس 1971',
+                        analysis: 'تخيل تطلع رحلة بالعربية وتطير فوق حفر القمر وتطير تراب الفضاء حواليك. تجربة خرافية صح؟ بس في مشكلة: مش هتعرف ترجع بالعربية! عشان رواد الفضاء يوفروا وقود يكفيهم يرجعوا الأرض، اضطروا يركنوا عربيتهم الكهربائية اللي تمنها 38 مليون دولار للأبد. سابوا المفاتيح، وآثار العجل، ورجعوا!',
+                        status: 'شكلها متغيرش كتير عن يوم ما ركنوها، بس عليها تراب أكتر شوية. عشان مفيش طقس على القمر يغسلها، التراب القمري الخشن غطى الكراسي ولوحة التحكم بالكامل. البطاريات فضيت تماماً، والأجزاء البلاستيك بقت هشة جداً بسبب الفراغ البارد، بس العجل لسه سليم كأنها مستنية حد ييجي يسوقها.'
+                    }
+                }
+            ],
+            mars: [
+                {
+                    id: 'ma1',
+                    image: '10.jpg',
+                    analysisImage: '10.jpg',
+                    x: '55%', y: '60%',
+                    integrity: 45,
+                    en: {
+                        name: 'Perseverance Parachute',
+                        mission: 'Mars 2020',
+                        date: 'February 18, 2021',
+                        analysis: 'Landing on Mars is called the "seven minutes of terror" for a reason. You\'re falling out of the sky at incredible speed, and this massive parachute is the only thing stopping you from becoming a crater. The second the rover slowed down enough, it fired lasers to cut the parachute loose so it wouldn\'t fall on top of the robot and trap it.',
+                        status: 'The parachute didn\'t land gently; it got dragged and half-buried in the rusty Martian dirt. The fierce winds and intense UV light from the sun are slowly breaking down the tough Kevlar fabric. If you look at it now, it looks like a giant, deflated balloon fading into the red desert.'
+                    },
+                    ar: {
+                        name: 'مظلة هبوط بيرسيفيرانس',
+                        mission: 'المريخ 2020',
+                        date: '18 فبراير 2021',
+                        analysis: 'الهبوط على المريخ بيسموه "سبع دقايق من الرعب" لسبب وجيه. إنت بتقع من السما بسرعة مرعبة، والمظلة العملاقة دي هي الحاجة الوحيدة اللي بتمنعك من إنك تتحطم. أول ما الروبوت هدى سرعته وبقى في أمان، قطع حبال المظلة فوراً عشان متقعش فوقه وتعطله، وسابها تطير بعيد.',
+                        status: 'المظلة منزلتش براحة؛ الرياح سحبتها ودفنت نصها في تراب المريخ الصدئ. العواصف القوية والأشعة فوق البنفسجية بتبدأ تفتت قماش الكيفلار القوي بتاعها ببطء. لو بصيت عليها دلوقتي، هتحس إنها زي بالون عملاق مفشوش وبيدوب جوه الصحرا الحمرا.'
+                    }
+                },
+                {
+                    id: 'ma2',
+                    image: '2.jpg',
+                    analysisImage: '7.jpg',
+                    x: '40%', y: '25%',
+                    integrity: 95,
+                    en: {
+                        name: 'Ingenuity Debris Shield',
+                        mission: 'Mars 2020',
+                        date: 'March 21, 2021',
+                        analysis: 'Inside the belly of the Mars rover was a tiny, fragile helicopter named Ingenuity. To survive the fiery crash-course through the Martian atmosphere, it needed a super-tough shield. This carbon shell took all the blazing heat and violent shaking. Once they were safely on the ground, the rover dropped the shield like an empty candy wrapper.',
+                        status: 'Engineered to survive extreme heat, this shield isn\'t breaking down anytime soon. It\'s currently sitting upside down on the Martian surface, almost looking like a strange metal bowl. The reddish dust is starting to gather inside it, slowly blending it into the alien landscape.'
+                    },
+                    ar: {
+                        name: 'درع حماية مروحية إنجينويتي',
+                        mission: 'المريخ 2020',
+                        date: '21 مارس 2021',
+                        analysis: 'جوه بطن مركبة المريخ كان في هليكوبتر صغيرة ورقيقة جداً اسمها "إنجينويتي". عشان تقدر تنجو من رحلة الاختراق النارية لغلاف المريخ، كانت محتاجة درع قوي جداً يحميها. القشرة الكربونية دي اتحملت كل الحرارة الرهيبة والاهتزازات. وأول ما وصلوا الأرض بأمان، المركبة رمت الدرع ده كأنه غلاف شوكولاتة فاضي!',
+                        status: 'لأنه متصمم عشان يعيش أسوأ الظروف، الدرع ده مش هيتحلل في أي وقت قريب. هو مرمي دلوقتي مقلوب على سطح المريخ، وشكله عامل زي طبق معدني غريب. التراب الأحمر بدأ يتجمع جواه، وبيخليه يندمج ببطء مع الصحرا الفضائية اللي حواليه.'
+                    }
+                }
+            ]
+        };
+
+        const envData = {
+            moon: {
+                en: { temp: '-173°C to 127°C', hazard: 'Micrometeorites & Solar Rad.' },
+                ar: { temp: '-173°C إلى 127°C', hazard: 'نيازك دقيقة وإشعاع شمسي' }
+            },
+            mars: {
+                en: { temp: '-153°C to 20°C', hazard: 'Abrasive Dust Storms' },
+                ar: { temp: '-153°C إلى 20°C', hazard: 'عواصف غبارية كاشطة' }
+            }
+        };
+
+        const app = {
+            lang: 'en',
+            currentBody: null,
+            activeItem: null,
+
+            els: {
+                html: document.getElementById('html-root'),
+                landing: document.getElementById('landing-view'),
+                map: document.getElementById('map-view'),
+                planet: document.getElementById('planet'),
+                mapTitle: document.getElementById('map-title'),
+                modal: document.getElementById('artifact-modal'),
+                modalCard: document.getElementById('modal-card'),
+                modalImg: document.getElementById('modal-image')
+            },
+
+            init() {
+                this.updateUI();
+                this.createSpaceJunk();
+                this.initOrbitalCanvas();
+            },
+
+            enterMuseum() {
+                const intro = document.getElementById('intro-view');
+                intro.classList.add('opacity-0');
+                intro.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    intro.classList.add('hidden');
+                }, 500);
+            },
+
+            initOrbitalCanvas() {
+                const canvas = document.getElementById('orbital-network-background');
+                const ctx = canvas.getContext('2d');
+                let width, height;
+                let pixelRatio;
+                let particles = [];
+                
+                function resize() {
+                    pixelRatio = window.devicePixelRatio || 1;
+                    width = window.innerWidth;
+                    height = window.innerHeight;
+                    canvas.width = Math.round(width * pixelRatio);
+                    canvas.height = Math.round(height * pixelRatio);
+                    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+                }
+                window.addEventListener('resize', resize);
+                resize();
+                
+                class Particle {
+                    constructor() {
+                        this.x = Math.random() * width;
+                        this.y = Math.random() * height;
+                        this.vx = (Math.random() - 0.5) * 2.5;
+                        this.vy = (Math.random() - 0.5) * 2.5;
+                        this.radius = Math.random() * 2 + 0.5;
+                    }
+                    update() {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        // Bounce off edges
+                        if (this.x < 0 || this.x > width) this.vx *= -1;
+                        if (this.y < 0 || this.y > height) this.vy *= -1;
+                    }
+                    draw() {
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = '#3CAFE8';
+                        ctx.fill();
+                    }
+                }
+                
+                // Create particles
+                for(let i=0; i<100; i++) {
+                    particles.push(new Particle());
+                }
+                
+                function animate() {
+                    ctx.clearRect(0, 0, width, height);
+                    for(let i=0; i<particles.length; i++) {
+                        particles[i].update();
+                        particles[i].draw();
+                        // Draw lines between nearby particles
+                        for(let j=i+1; j<particles.length; j++) {
+                            const dx = particles[i].x - particles[j].x;
+                            const dy = particles[i].y - particles[j].y;
+                            const dist = Math.sqrt(dx*dx + dy*dy);
+                            
+                            // زيادة مسافة الربط لتكون الشبكة "مفرودة" وواسعة من اللحظة الأولى
+                            if(dist < 280) {
+                                ctx.beginPath();
+                                ctx.strokeStyle = `rgba(60, 175, 232, ${0.4 * (1 - dist/280)})`;
+                                ctx.lineWidth = 1.2;
+                                ctx.moveTo(particles[i].x, particles[i].y);
+                                ctx.lineTo(particles[j].x, particles[j].y);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    requestAnimationFrame(animate);
+                }
+                animate();
+            },
+
+            createSpaceJunk() {
+                const container = document.createElement('div');
+                container.className = 'fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0';
+                document.body.insertBefore(container, document.body.firstChild);
+                
+                const svgs = [
+                    // نيزك (Meteorite)
+                    '<svg fill="currentColor" viewBox="0 0 24 24"><path d="M17.2 3.8a1 1 0 00-1.4 0l-3.3 3.3-1.4-1.4a1 1 0 00-1.4 0l-5.6 5.6a1 1 0 000 1.4l1.4 1.4-1.8 3.5a1 1 0 001.3 1.3l3.5-1.8 1.4 1.4a1 1 0 001.4 0l5.6-5.6a1 1 0 000-1.4l-1.4-1.4 3.3-3.3a1 1 0 000-1.4zM9.5 17.5l-2.1-2.1 1.4-1.4 2.1 2.1-1.4 1.4zm5-5l-2.1-2.1 4.2-4.2 2.1 2.1-4.2 4.2z"/></svg>',
+                    // ترس / جزء ميكانيكي (Gear / Rover Part)
+                    '<svg fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 C13.73,21.59,13.93,21.76,14.16,21.76h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>',
+                    // لوح طاقة شمسية محطم (Broken Solar Panel)
+                    '<svg fill="currentColor" viewBox="0 0 24 24"><path d="M21,11h-2V7h-4V5h-2v2h-2V5H9v2H5v4H3v2h2v4h4v2h2v-2h2v2h2v-2h4v-4h2V11z M15,15h-2v-2h2V15z M15,11h-2V9h2V11z M11,15H9v-2h2V15z M11,11H9V9h2V11z"/></svg>',
+                    // هيكل معدني (Metal Frame/Rocket part)
+                    '<svg fill="currentColor" viewBox="0 0 24 24"><path d="M12,2C12,2,4,7.5,4,15c0,3.31,2.69,6,6,6h4c3.31,0,6-2.69,6-6C20,7.5,12,2,12,2z M12,10c-1.1,0-2-0.9-2-2s0.9-2,2-2 s2,0.9,2,2S13.1,10,12,10z"/></svg>'
+                ];
+
+                for(let i=0; i<20; i++) {
+                    const junk = document.createElement('div');
+                    junk.innerHTML = svgs[Math.floor(Math.random() * svgs.length)];
+                    
+                    const size = 20 + Math.random() * 60;
+                    const startX = Math.random() * 120 - 10;
+                    const startY = Math.random() * 120 - 10;
+                    const duration = 30 + Math.random() * 60;
+                    const delay = -(Math.random() * 50);
+                    const rotateStart = Math.random() * 360;
+                    const rotateEnd = rotateStart + (Math.random() * 720 - 360);
+                    const directionX = Math.random() > 0.5 ? 1 : -1;
+                    const directionY = Math.random() > 0.5 ? 1 : -1;
+
+                    junk.style.cssText = `
+                        position: absolute;
+                        width: ${size}px;
+                        height: ${size}px;
+                        left: ${startX}vw;
+                        top: ${startY}vh;
+                        color: #a38965; /* لون معدن صدئ */
+                        opacity: ${0.1 + Math.random() * 0.15};
+                        filter: drop-shadow(0 0 8px rgba(0,0,0,0.8));
+                        animation: floatJunk ${duration}s linear infinite;
+                        animation-delay: ${delay}s;
+                    `;
+
+                    junk.style.setProperty('--x-end', `${(Math.random() * 60 + 20) * directionX}vw`);
+                    junk.style.setProperty('--y-end', `${(Math.random() * 60 + 20) * directionY}vh`);
+                    junk.style.setProperty('--r-start', `${rotateStart}deg`);
+                    junk.style.setProperty('--r-end', `${rotateEnd}deg`);
+
+                    container.appendChild(junk);
+                }
+            },
+
+            toggleLang() {
+                this.lang = this.lang === 'en' ? 'ar' : 'en';
+                this.els.html.lang = this.lang;
+                this.els.html.dir = this.lang === 'ar' ? 'rtl' : 'ltr';
+                this.updateUI();
+            },
+
+            updateUI() {
+                // Update static translations
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (i18n[this.lang][key]) {
+                        el.innerText = i18n[this.lang][key];
+                    }
+                });
+
+                // Update HUD if visible
+                if (this.currentBody) {
+                    document.getElementById('hud-temp').innerText = envData[this.currentBody][this.lang].temp;
+                    document.getElementById('hud-hazard').innerText = envData[this.currentBody][this.lang].hazard;
+                }
+
+                // Update page title
+                document.getElementById('page-title').innerText = i18n[this.lang].pageTitle;
+
+                // Update map title if active
+                if (this.currentBody) {
+                    this.els.mapTitle.innerText = this.currentBody === 'moon' 
+                        ? i18n[this.lang].moonGalleryTitle 
+                        : i18n[this.lang].marsGalleryTitle;
+                }
+
+                // Update modal if open
+                if (this.activeItem && !this.els.modal.classList.contains('hidden')) {
+                    this.populateModal(this.activeItem);
+                }
+            },
+
+            explore(body) {
+                this.currentBody = body;
+                this.els.landing.classList.add('opacity-0');
+                
+                setTimeout(() => {
+                    this.els.landing.classList.add('hidden');
+                    this.setupMap(body);
+                    this.els.map.classList.remove('hidden');
+                    
+                    // Show HUD
+                    const hud = document.getElementById('env-hud');
+                    document.getElementById('hud-temp').innerText = envData[body][this.lang].temp;
+                    document.getElementById('hud-hazard').innerText = envData[body][this.lang].hazard;
+                    
+                    setTimeout(() => {
+                        this.els.map.classList.remove('opacity-0');
+                        hud.classList.remove('opacity-0', 'ltr:-translate-x-full', 'rtl:translate-x-full');
+                        hud.classList.add('translate-x-0');
+                    }, 50);
+                }, 500);
+            },
+
+            goHome() {
+                this.els.map.classList.add('opacity-0');
+                
+                const hud = document.getElementById('env-hud');
+                hud.classList.remove('translate-x-0');
+                hud.classList.add('opacity-0', 'ltr:-translate-x-full', 'rtl:translate-x-full');
+
+                setTimeout(() => {
+                    this.els.map.classList.add('hidden');
+                    
+                    this.els.landing.classList.remove('hidden');
+                    setTimeout(() => {
+                        this.els.landing.classList.remove('opacity-0');
+                    }, 50);
+                    
+                    this.els.planet.innerHTML = '';
+                    this.currentBody = null;
+                }, 500);
+            },
+
+
+            setupMap(body) {
+                this.els.mapTitle.innerText = body === 'moon' 
+                    ? i18n[this.lang].moonGalleryTitle 
+                    : i18n[this.lang].marsGalleryTitle;
+                
+                this.els.planet.className = 'planet-container relative';
+                this.els.planet.classList.add(body === 'moon' ? 'planet-moon' : 'planet-mars');
+                this.els.planet.innerHTML = '';
+
+                const items = artifactsData[body];
+                if(items) {
+                    items.forEach(item => {
+                        const marker = document.createElement('div');
+                        marker.className = 'artifact-marker';
+                        marker.style.left = item.x;
+                        marker.style.top = item.y;
+                        
+                        const ping = document.createElement('div');
+                        ping.className = 'marker-ping';
+                        marker.appendChild(ping);
+
+                        marker.onclick = () => this.openModal(item);
+                        this.els.planet.appendChild(marker);
+                    });
+                }
+            },
+
+            populateModal(item) {
+                const data = item[this.lang];
+                this.els.modalImg.src = item.image;
+                document.getElementById('modal-analysis-img').src = item.analysisImage;
+                document.getElementById('modal-name').innerText = data.name;
+                document.getElementById('modal-mission').innerText = data.mission;
+                document.getElementById('modal-date').innerText = data.date;
+                document.getElementById('modal-analysis').innerText = data.analysis;
+                document.getElementById('modal-status').innerText = data.status;
+
+                // Reset integrity bar
+                document.getElementById('modal-integrity-bar').style.width = '0%';
+                document.getElementById('modal-integrity-text').innerText = '0%';
+            },
+
+            openModal(item) {
+                this.activeItem = item;
+                this.populateModal(item);
+
+                this.els.modal.classList.remove('hidden');
+                
+                // Restart scan animation
+                const scan = document.getElementById('scan-line');
+                scan.style.animation = 'none';
+                scan.offsetHeight; // trigger reflow
+                scan.style.animation = 'scanMove 2s ease-in-out infinite alternate';
+
+                setTimeout(() => {
+                    this.els.modalCard.classList.remove('scale-95', 'opacity-0');
+                    this.els.modalCard.classList.add('scale-100', 'opacity-100');
+                    
+                    // Animate Integrity Bar
+                    setTimeout(() => {
+                        document.getElementById('modal-integrity-bar').style.width = `${item.integrity}%`;
+                        
+                        // Counter animation for text
+                        let current = 0;
+                        const target = item.integrity;
+                        const interval = setInterval(() => {
+                            if (current >= target) {
+                                clearInterval(interval);
+                                document.getElementById('modal-integrity-text').innerText = `${target}%`;
+                            } else {
+                                current += 2;
+                                document.getElementById('modal-integrity-text').innerText = `${current}%`;
+                            }
+                        }, 20);
+                    }, 500);
+
+                }, 10);
+            },
+
+            closeModal() {
+                this.els.modalCard.classList.remove('scale-100', 'opacity-100');
+                this.els.modalCard.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    this.els.modal.classList.add('hidden');
+                    this.activeItem = null;
+                }, 300);
+            }
+        };
+
+        // Initialize App
+        app.init();
+    </script>
+<script>
+/* AstroHeritage bridge – museum module */
+(function () {
+  if (typeof app === 'undefined') return;
+  var P = window.parent;
+  function post(view) { try { P.postMessage({ ah: 'state', section: 'museum', view: view }, '*'); } catch (e) {} }
+  var _explore = app.explore.bind(app), _home = app.goHome.bind(app);
+  app.explore = function (b) { _explore(b); post(b); };
+  app.goHome = function () { _home(); post('overview'); };
+
+  function hud(on) {
+    var h = document.getElementById('env-hud'); if (!h) return;
+    if (on) { h.classList.remove('opacity-0', 'ltr:-translate-x-full', 'rtl:translate-x-full'); h.classList.add('translate-x-0'); }
+    else { h.classList.remove('translate-x-0'); h.classList.add('opacity-0', 'ltr:-translate-x-full', 'rtl:translate-x-full'); }
+  }
+  function reveal(el) {
+    el.classList.remove('hidden');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.remove('opacity-0'); }); });
+  }
+  function show(view) {
+    var E = app.els;
+    if (E.modal && !E.modal.classList.contains('hidden')) app.closeModal();
+    [E.landing, E.map].forEach(function (el) { el.classList.add('hidden', 'opacity-0'); });
+    if (view === 'moon' || view === 'mars') {
+      app.currentBody = view;
+      app.setupMap(view);
+      document.getElementById('hud-temp').innerText = envData[view][app.lang].temp;
+      document.getElementById('hud-hazard').innerText = envData[view][app.lang].hazard;
+      hud(true); reveal(E.map);
+    } else {
+      hud(false); E.planet.innerHTML = ''; app.currentBody = null; reveal(E.landing); view = 'overview';
+    }
+    post(view);
+  }
+
+  window.addEventListener('message', function (e) {
+    if (e.source !== P) return;
+    var d = e.data; if (!d || d.ah !== 'cmd') return;
+    if (d.lang && app.lang !== d.lang) app.toggleLang();
+    if (d.view) show(d.view);
+  });
+})();
+
+</script>
+</body>
+</html>
