@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Archaeologist Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Orbitron:wght@400;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for Avatars -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: {
+                            900: '#050510',
+                            800: '#1a1a2e',
+                            700: '#252542'
+                        },
+                        neon: {
+                            cyan: '#00F0FF',
+                            purple: '#B026FF',
+                            pink: '#FF2A6D'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Cairo', 'sans-serif'],
+                        tech: ['Orbitron', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-space: #050510;
+            --bg-panel: #1a1a2e;
+            --accent-cyan: #00F0FF;
+            --accent-purple: #B026FF;
+            --text-primary: #E2E8F0;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--bg-deep-space);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* Map background */
+        .map-container {
+            background: radial-gradient(circle at center, #1a1525 0%, var(--bg-deep-space) 100%);
+            position: relative;
+        }
+
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        /* Markers */
+        .marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background-color: var(--accent-cyan);
+            box-shadow: 0 0 15px var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .marker.apollo { background-color: #f3f4f6; box-shadow: 0 0 15px #f3f4f6; }
+        .marker.voyager { background-color: var(--accent-purple); box-shadow: 0 0 15px var(--accent-purple); }
+
+        .marker:hover { transform: translate(-50%, -50%) scale(1.5); }
+
+        .marker::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid inherit;
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+            border-color: inherit;
+        }
+
+        @keyframes ping {
+            75%, 100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        /* Welcome Screen & Stars */
+        #welcome-screen {
+            background: #020205; /* Deep space navy/black */
+            transition: opacity 0.8s ease-in-out, visibility 0.8s;
+        }
+        #welcome-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .fade-out {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        
+        .stars {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out alternate, moveUp var(--speed) infinite linear;
+            opacity: 0;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 8px white; }
+        }
+        @keyframes moveUp {
+            from { transform: translateY(100vh); }
+            to { transform: translateY(-10vh); }
+        }
+
+        .pulse-btn {
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
+        }
+
+        #space-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Details Panel */
+        .details-panel {
+            background-color: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(15px);
+            border-inline-start: 1px solid var(--border-color);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 30;
+        }
+        
+        html[dir="rtl"] .details-panel {
+            transform: translateX(-100%);
+        }
+
+        .details-panel.open { transform: translateX(0) !important; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-panel); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+        /* Tabs */
+        .nav-tab { border-bottom: 2px solid transparent; transition: all 0.3s; }
+        .nav-tab.active {
+            border-bottom-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        
+        .lab-tab { 
+            transition: all 0.5s ease; 
+            border-color: #252542; /* space-700 */
+            color: #D1D5DB; /* text-gray-300 */
+        }
+        .lab-tab:hover {
+            border-color: var(--active-tab-color, var(--accent-cyan));
+            color: #ffffff;
+        }
+        .lab-tab.active {
+            background-color: var(--active-tab-color, var(--accent-cyan)) !important;
+            color: #000 !important;
+            border-color: var(--active-tab-color, var(--accent-cyan)) !important;
+            box-shadow: 0 0 20px var(--active-tab-glow, rgba(0, 240, 255, 0.4)) !important;
+        }
+        
+        #lab-view {
+            background: radial-gradient(circle at top, var(--active-tab-glow, rgba(0, 240, 255, 0.1)) 0%, var(--bg-deep-space) 60%);
+            transition: background 0.8s ease;
+        }
+        
+        /* Hologram Effects */
+        .perspective-1000 { perspective: 1000px; transform-style: preserve-3d; }
+        .holo-anim {
+            animation: holo-spin 2.5s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+        }
+        @keyframes holo-spin {
+            0% { transform: rotateY(-1080deg) scale(0.2) translateY(30px); opacity: 0; filter: blur(20px) contrast(200%); }
+            40% { opacity: 0.7; filter: blur(5px) contrast(150%); }
+            80% { transform: rotateY(20deg) scale(1.1) translateY(0); filter: blur(0px); opacity: 0.95; }
+            100% { transform: rotateY(0deg) scale(1) translateY(0); opacity: 0.9; }
+        }
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 240, 255, 0.1) 50%, rgba(0, 240, 255, 0.1));
+            background-size: 100% 4px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col text-sm md:text-base font-sans">
+
+    <!-- Hologram Overlay Effect -->
+    <div id="hologram-overlay" class="fixed inset-0 z-[150] bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center overflow-hidden">
+        <h2 id="holo-text" class="text-neon-cyan font-tech text-xl md:text-2xl mb-12 tracking-[0.3em] uppercase animate-pulse">Reconstructing...</h2>
+        
+        <div class="relative perspective-1000 w-64 h-64 md:w-96 md:h-96 flex items-center justify-center">
+            <img id="holo-img" src="" class="max-w-full max-h-full object-contain mix-blend-screen transition-all duration-300">
+            <div class="absolute inset-0 scanlines pointer-events-none rounded-full mix-blend-overlay opacity-50"></div>
+            <!-- Hologram Base Plate -->
+            <div id="holo-glow" class="absolute -bottom-10 w-48 md:w-64 h-12 rounded-[100%] bg-neon-cyan/20 blur-xl transition-colors"></div>
+            <div id="holo-base" class="absolute -bottom-10 w-32 md:w-48 h-8 rounded-[100%] border-2 border-neon-cyan/50 shadow-[0_0_20px_#00F0FF] animate-pulse transition-all"></div>
+        </div>
+        
+        <div id="holo-dots" class="mt-16 flex gap-3">
+            <div class="w-3 h-3 rounded bg-neon-cyan animate-ping dot-color" style="animation-delay: 0s;"></div>
+            <div class="w-3 h-3 rounded bg-neon-cyan animate-ping dot-color" style="animation-delay: 0.2s;"></div>
+            <div class="w-3 h-3 rounded bg-neon-cyan animate-ping dot-color" style="animation-delay: 0.4s;"></div>
+        </div>
+    </div>
+
+    <!-- Welcome Screen -->
+    <div id="welcome-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center text-center p-6 overflow-hidden">
+        <video id="welcome-video" autoplay muted loop playsinline aria-hidden="true" tabindex="-1">
+            <source src="gemini_generated_video_8b4f85a9.mp4" type="video/mp4">
+        </video>
+        <div class="absolute inset-0 z-[1] bg-black/50 pointer-events-none"></div>
+        <!-- Stars background generated by JS (Canvas) -->
+        <canvas id="stars-canvas" class="absolute inset-0 pointer-events-none w-full h-full z-[2]"></canvas>
+        
+        <div class="relative z-10 max-w-3xl mx-auto flex flex-col items-center gap-6">
+            <!-- Top Language Toggle 
+            <button onclick="toggleLanguage()" class="absolute -top-16 end-0 md:-end-20 px-4 py-1.5 rounded-full border border-neon-purple text-neon-purple hover:bg-neon-purple hover:text-white transition-colors font-bold text-sm tracking-wider">
+                <i class="ph ph-translate me-1"></i> <span id="welcome-lang-btn">عربي</span>
+            </button>
+
+            <div class="w-24 h-24 bg-neon-cyan/20 rounded-full flex items-center justify-center border-2 border-neon-cyan mb-4 animate-bounce">
+                <i class="ph ph-rocket text-5xl text-neon-cyan"></i>
+            </div>-->
+            
+            <h1 id="welcome-title" class="text-4xl md:text-6xl font-black text-white tracking-tight drop-shadow-lg font-tech">
+                Welcome to Space
+            </h1>
+            
+            <p id="welcome-subtitle" class="text-lg md:text-2xl text-gray-300 max-w-2xl leading-relaxed mb-8">
+                Ready to uncover the forgotten machines of the universe?
+            </p>
+            
+            <a  href="astro.html" class="pulse-btn bg-neon-cyan text-black px-10 py-4 rounded-full text-xl md:text-2xl font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all border-4 border-neon-cyan hover:border-white">
+                <span id="welcome-start">Start Exploring</span> <i class="ph ph-rocket font-bold ms-2"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="bg-space-800/95 backdrop-blur-md border-b border-space-700 flex items-center justify-between px-6 z-50 flex-shrink-0 relative">
+        <div class="flex items-center py-3">
+            <h1 class="text-xl font-bold text-white tracking-wide flex items-center gap-2 cursor-default">
+                <i class="ph ph-planet text-2xl text-neon-cyan"></i>
+                <span id="ui-title">Space Antiquities</span>
+            </h1>
+        </div>
+        <div class="flex h-full absolute left-1/2 transform -translate-x-1/2">
+            <button onclick="switchMainView('map-view')" id="tab-map-view" class="nav-tab active px-6 py-4 flex items-center gap-2 font-semibold text-gray-300 hover:text-white h-full">
+                <i class="ph ph-map-trifold text-lg"></i> <span id="ui-tab-map">Artifact Map</span>
+            </button>
+            <button onclick="switchMainView('lab-view')" id="tab-lab-view" class="nav-tab px-6 py-4 flex items-center gap-2 font-semibold text-gray-300 hover:text-white h-full">
+                <i class="ph ph-flask text-lg"></i> <span id="ui-tab-lab">Generations Lab</span>
+            </button>
+        </div>
+        <div>
+            <button onclick="toggleLanguage()" class="px-4 py-1.5 rounded border border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-black transition-colors font-bold text-sm tracking-wider">
+                <i class="ph ph-translate mr-1"></i> <span id="lang-btn-text">عربي</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Map View -->
+    <div id="map-view" class="flex-1 flex flex-col md:flex-row overflow-hidden relative w-full">
+        <!-- Sidebar -->
+        <aside class="w-full md:w-80 h-auto md:h-full flex flex-col z-40 bg-space-800/90 backdrop-blur-md border-e border-space-700 flex-shrink-0">
+            <div class="flex-1 overflow-y-auto p-6 space-y-4" id="sidebar-list">
+                <!-- Rendered via JS -->
+            </div>
+            <div class="p-4 border-t border-space-700 text-xs text-gray-500 flex justify-between items-center">
+                <span id="ui-db-conn">Connected to NASA DB</span>
+                <div class="flex items-center gap-1">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    LIVE
+                </div>
+            </div>
+        </aside>
+
+        <!-- Interactive Map -->
+        <main class="flex-1 map-container relative">
+            <div class="grid-overlay"></div>
+            
+            <!-- Tooltip Container -->
+            <div id="map-tooltip" class="absolute pointer-events-none opacity-0 invisible transition-all duration-300 z-[60] bg-space-800/95 backdrop-blur-md border p-2 rounded-lg flex items-center gap-3 shadow-[0_0_15px_rgba(0,0,0,0.5)]" style="transform: translate(-50%, -100%);">
+                <img id="tooltip-img" src="" class="w-10 h-10 object-cover rounded border border-gray-600 mix-blend-screen">
+                <span id="tooltip-text" class="text-sm font-bold text-white whitespace-nowrap"></span>
+            </div>
+
+            <div class="absolute top-6 start-6 z-10 flex gap-4 pointer-events-none">
+                <div class="bg-space-800/70 backdrop-blur-md border border-space-700 rounded-lg p-3">
+                    <p class="text-xs text-neon-cyan mb-1" id="ui-scan">Current Scan</p>
+                    <p class="font-bold text-white tracking-wide font-tech text-lg">SOLAR SYSTEM</p>
+                </div>
+            </div>
+
+            <!-- Markers -->
+            <div class="marker absolute top-[45%] start-[60%]" onmouseenter="showTooltip(event, 'opportunity')" onmouseleave="hideTooltip()" onclick="openDetails('opportunity')"></div>
+            <div class="marker apollo absolute top-[30%] start-[30%]" onmouseenter="showTooltip(event, 'apollo11')" onmouseleave="hideTooltip()" onclick="openDetails('apollo11')"></div>
+            <div class="marker voyager absolute top-[15%] start-[85%]" onmouseenter="showTooltip(event, 'voyager1')" onmouseleave="hideTooltip()" onclick="openDetails('voyager1')"></div>
+        </main>
+
+        <!-- Details Panel -->
+        <aside id="detailsPanel" class="details-panel fixed top-0 end-0 h-full w-full md:w-[450px] flex flex-col border-s border-space-700">
+            <div class="relative h-64 bg-black overflow-hidden flex-shrink-0">
+                <img id="det-img" src="" class="w-full h-full object-cover opacity-60 mix-blend-screen">
+                <div class="absolute inset-0 bg-gradient-to-t from-space-800 via-transparent to-transparent"></div>
+                
+                <button onclick="closeDetails()" class="absolute top-4 end-4 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 border border-space-700 hover:border-white transition-all z-10">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+                
+                <div class="absolute bottom-4 start-6 end-6 z-10">
+                    <span id="det-status" class="inline-block px-2 py-0.5 mb-2 rounded text-[10px] font-bold bg-neon-cyan/20 text-neon-cyan border border-neon-cyan uppercase tracking-wider"></span>
+                    <h2 id="det-title" class="text-2xl font-bold text-white tracking-wide"></h2>
+                    <p id="det-subtitle" class="text-sm text-neon-purple font-tech mt-1"></p>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 space-y-8">
+                <section>
+                    <h3 class="text-sm font-semibold text-neon-cyan mb-3 flex items-center gap-2 border-b border-space-700 pb-2">
+                        <i class="ph ph-scroll"></i> <span id="ui-mission-log">Mission Log</span>
+                    </h3>
+                    <p id="det-story" class="text-gray-300 text-sm leading-relaxed"></p>
+                </section>
+
+                <section>
+                    <h3 class="text-sm font-semibold text-neon-cyan mb-3 flex items-center gap-2 border-b border-space-700 pb-2">
+                        <i class="ph ph-chart-bar"></i> <span id="ui-lifespan">Lifespan Analysis</span>
+                    </h3>
+                    <div class="w-full h-48 mt-4 bg-white/5 p-3 rounded-lg border border-space-700">
+                        <canvas id="lifespanChart"></canvas>
+                    </div>
+                </section>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Generations Lab View -->
+    <div id="lab-view" class="hidden flex-1 overflow-y-auto p-6 md:p-10 w-full relative">
+        <div class="max-w-5xl mx-auto pb-20">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-white mb-3 flex justify-center items-center gap-3">
+                    <i id="lab-title-icon" class="ph ph-flask text-neon-cyan transition-colors duration-500"></i> <span id="ui-lab-title">Generations Lab</span>
+                </h2>
+                <p class="text-gray-400 max-w-2xl mx-auto" id="ui-lab-desc">Select an age group to explore STEM and space archaeology activities.</p>
+            </div>
+
+            <div class="flex justify-center flex-wrap gap-4 mb-12">
+                <button onclick="switchLabTab('age-5-8')" id="tab-age-5-8" class="lab-tab active px-8 py-2.5 rounded-full border font-bold">5 - 8 <span class="yr">Years</span></button>
+                <button onclick="switchLabTab('age-9-13')" id="tab-age-9-13" class="lab-tab px-8 py-2.5 rounded-full border font-bold">9 - 13 <span class="yr">Years</span></button>
+                <button onclick="switchLabTab('age-14-18')" id="tab-age-14-18" class="lab-tab px-8 py-2.5 rounded-full border font-bold">14 - 18 <span class="yr">Years</span></button>
+            </div>
+
+            <div id="lab-content-container" class="grid md:grid-cols-2 gap-8">
+                <!-- Rendered via JS based on selected tab -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLang = 'en';
+        let chartInstance = null;
+        let currentActiveArtifact = null;
+        let currentLabTab = 'age-5-8';
+        let isDrawing = false;
+        let ctxCanvas = null;
+        let piecesAssembled = 0;
+        let timelineStep = 0;
+
+        window.startExploration = function() {
+            document.getElementById('welcome-screen').classList.add('fade-out');
+            setTimeout(() => {
+                document.getElementById('welcome-screen').style.display = 'none';
+            }, 800);
+        };
+
+        // --- Data Definitions ---
+
+        const uiStrings = {
+            en: {
+                title: "Space Antiquities",
+                tabMap: "Artifact Map",
+                tabLab: "Generations Lab",
+                langBtn: "عربي",
+                scan: "Current Scan",
+                dbConn: "Connected to NASA DB",
+                missionLog: "Mission Log",
+                lifespan: "Lifespan (Expected vs Actual)",
+                labTitle: "Generations Lab: STEM Activities",
+                labDesc: "Select an age group to explore interactive educational activities merging space science (STEM) with archaeological excavation skills.",
+                years: "Years",
+                archListTitle: "ARCHAEOLOGICAL RECORD",
+                welcomeTitle: "Welcome to Space ",
+                welcomeSubtitle: "",
+                welcomeStart: "Start Exploring",
+                welcomeLangBtn: "عربي",
+                avatar1Title: "The Little Explorers",
+                avatar1Desc: "Discovering the wonders of space and ancient history through play!",
+                avatar2Title: "The Junior Archaeologists",
+                avatar2Desc: "Digging deeper into engineering, history, and the secrets of the cosmos.",
+                avatar3Title: "The Mission Commanders",
+                avatar3Desc: "Leading the analysis, preservation, and data science of off-world heritage."
+            },
+            ar: {
+                title: "آثار الفضاء",
+                tabMap: "خريطة الآثار",
+                tabLab: "مختبر الأجيال",
+                langBtn: "English",
+                scan: "الرصد الحالي",
+                dbConn: "متصل بقاعدة بيانات NASA",
+                missionLog: "السجل الأثري للمهمة",
+                lifespan: "العمر التشغيلي (المتوقع مقابل الفعلي)",
+                labTitle: "مختبر الأجيال: أنشطة تطبيقية",
+                labDesc: "اختر الفئة العمرية لاستكشاف الأنشطة التعليمية التفاعلية التي تدمج بين علوم الفضاء والتكنولوجيا (STEM) ومهارات التنقيب الأثري.",
+                years: "سنوات",
+                archListTitle: "السجل الأثري للمعدات",
+                welcomeTitle: "أكاديمية آثار الفضاء ترحب بك!",
+                welcomeSubtitle: "هل أنت مستعد لاكتشاف آلات الكون المنسية؟",
+                welcomeStart: "ابدأ الاستكشاف",
+                welcomeLangBtn: "English",
+                avatar1Title: "المستكشفون الصغار",
+                avatar1Desc: "اكتشاف عجائب الفضاء والتاريخ القديم من خلال اللعب الخيالي!",
+                avatar2Title: "علماء الآثار الناشئون",
+                avatar2Desc: "التعمق في الهندسة، التاريخ، وكشف أسرار الكون المنسية.",
+                avatar3Title: "قادة المهام الفضائية",
+                avatar3Desc: "قيادة التحليل، علوم البيانات، والحفاظ على التراث خارج الأرض."
+            }
+        };
+
+        const artifacts = {
+            opportunity: {
+                id: 'opportunity',
+                image: 'https://upload.wikimedia.org/wikipedia/commons/d/d8/NASA_Mars_Rover.jpg',
+                expected: 90, actual: 5111,
+                en: {
+                    title: "Opportunity Rover", subtitle: "MER-B (Mars Exploration Rover)",
+                    status: "Silent Monument - Mars",
+                    listLoc: "Mars", unit: "Days",
+                    story: "Landed in Meridiani Planum in 2004 for a planned 90-day mission. It defied all expectations and explored Mars for nearly 15 years. Its final message made it one of history's most beloved machines, now resting under the Martian dust as a monument to human perseverance."
+                },
+                ar: {
+                    title: "مركبة أبورتيونيتي", subtitle: "MER-B",
+                    status: "أثر صامت - المريخ",
+                    listLoc: "المريخ", unit: "أيام",
+                    story: "هبطت في ميريدياني بلانوم عام 2004 في مهمة صُممت لتدوم 90 يوماً فقط. لكنها تحدت التوقعات وعاشت لـ 15 عاماً تقريباً. رسالتها الأخيرة جعلتها من أكثر الآلات المحبوبة، وتستقر الآن تحت غبار المريخ كنصب للمثابرة البشرية."
+                },
+                color: '#00F0FF'
+            },
+            apollo11: {
+                id: 'apollo11',
+                image: '4.jpg',
+                expected: 1, actual: 20000, 
+                en: {
+                    title: "Apollo 11 Descent Stage", subtitle: "EAGLE LUNAR MODULE",
+                    status: "Historic Heritage - Moon",
+                    listLoc: "Luna (Moon)", unit: "Days",
+                    story: "The base that launched Neil Armstrong and Buzz Aldrin back to Earth. Left in the Sea of Tranquility in 1969, it stands as an eternal witness and an off-world archaeological site marking humanity's first step on another celestial body."
+                },
+                ar: {
+                    title: "مرحلة هبوط أبولو 11", subtitle: "الوحدة القمرية إيجل",
+                    status: "تراث تاريخي - القمر",
+                    listLoc: "القمر", unit: "أيام",
+                    story: "القاعدة التي أطلقت أرمسترونج وألدرين للعودة للأرض. تُركت في بحر الهدوء عام 1969 لتبقى شاهداً أبدياً وموقعاً أثرياً خارج كوكب الأرض يوثق أول خطوة للبشرية في الفضاء."
+                },
+                color: '#f3f4f6'
+            },
+            voyager1: {
+                id: 'voyager1',
+                image: 'https://upload.wikimedia.org/wikipedia/commons/d/d2/Voyager.jpg',
+                expected: 5, actual: 46,
+                en: {
+                    title: "Voyager 1 Probe", subtitle: "INTERSTELLAR MISSION",
+                    status: "Active - Deep Space",
+                    listLoc: "Deep Space", unit: "Years",
+                    story: "Launched in 1977 to explore Jupiter and Saturn, it is now the farthest human-made object from Earth. Carrying the 'Golden Record'—a time capsule of Earth's sounds and images—it is a traveling archaeological artifact in the cosmic ocean."
+                },
+                ar: {
+                    title: "المسبار فويجر 1", subtitle: "مهمة بين النجوم",
+                    status: "نشط - الفضاء العميق",
+                    listLoc: "الفضاء العميق", unit: "سنوات",
+                    story: "أُطلق عام 1977 لاستكشاف المشتري وزحل، وهو الآن أبعد جسم من صنع الإنسان. يحمل 'اللوحة الذهبية' ككبسولة زمنية لأصوات وصور الأرض، ليصبح أثراً فضائياً يسبح في المحيط الكوني."
+                },
+                color: '#B026FF'
+            }
+        };
+
+        const labActivities = {
+            'age-5-8': [
+                {
+                    icon: 'ph-rocket', colorClass: 'text-neon-cyan', bgClass: 'bg-neon-cyan/10', borderHover: 'hover:border-neon-cyan',
+                    en: { 
+                        type: "Art & STEM", title: "Design a Rover", 
+                        desc: "Use the drawing board below to design your own space rover!", 
+                        bullets: [],
+                        customHtml: `<div class="mt-4">
+                            <canvas id="drawCanvas" class="w-full h-48 bg-space-900 border-2 border-space-700 rounded-lg cursor-crosshair touch-none shadow-inner"></canvas>
+                            <div class="flex gap-3 mt-3 items-center">
+                                <input type="color" id="colorPicker" value="#00F0FF" class="w-8 h-8 cursor-pointer rounded bg-transparent p-0 border-0">
+                                <button onclick="clearCanvas()" class="px-4 py-1.5 bg-space-700 hover:bg-space-600 text-white rounded font-semibold transition-colors text-xs uppercase tracking-wider">Clear Canvas</button>
+                            </div>
+                        </div>`
+                    },
+                    ar: { 
+                        type: "فنون وتطبيق (STEM)", title: "صمم مركبتك الفضائية", 
+                        desc: "استخدم لوحة الرسم بالأسفل لتصميم مركبتك الخاصة!", 
+                        bullets: [],
+                        customHtml: `<div class="mt-4">
+                            <canvas id="drawCanvas" class="w-full h-48 bg-space-900 border-2 border-space-700 rounded-lg cursor-crosshair touch-none shadow-inner"></canvas>
+                            <div class="flex gap-3 mt-3 items-center">
+                                <input type="color" id="colorPicker" value="#00F0FF" class="w-8 h-8 cursor-pointer rounded bg-transparent p-0 border-0">
+                                <button onclick="clearCanvas()" class="px-4 py-1.5 bg-space-700 hover:bg-space-600 text-white rounded font-semibold transition-colors text-xs uppercase tracking-wider">مسح اللوحة</button>
+                            </div>
+                        </div>`
+                    }
+                },
+                {
+                    icon: 'ph-shovel', colorClass: 'text-neon-purple', bgClass: 'bg-neon-purple/10', borderHover: 'hover:border-neon-purple',
+                    en: { 
+                        type: "Archaeology", title: "Visual Treasure Map", 
+                        desc: "A lost probe is hidden in the Martian dust. Click around the map to find it!", 
+                        bullets: [],
+                        customHtml: `<div class="mt-4 relative w-full h-48 bg-gradient-to-br from-[#5A2010] to-[#2D1005] rounded-xl border-2 border-space-700 cursor-pointer overflow-hidden shadow-inner group" onclick="findVisualTreasure(event)">
+                            <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                            <div id="visualTreasure" class="absolute w-12 h-12 bg-neon-cyan/20 border-2 border-neon-cyan rounded-full hidden flex items-center justify-center shadow-[0_0_25px_#00F0FF] animate-pulse" style="top: 60%; left: 75%; transform: translate(-50%, -50%);">
+                                <i class="ph ph-robot text-neon-cyan text-2xl"></i>
+                            </div>
+                            <p class="absolute bottom-3 left-3 text-xs text-white/90 bg-black/60 px-3 py-1.5 rounded-full pointer-events-none">Click around to unearth the rover!</p>
+                        </div>`
+                    },
+                    ar: { 
+                        type: "علم الآثار", title: "خريطة الكنز البصرية", 
+                        desc: "هناك مسبار مفقود تحت الغبار المريخي. اضغط على الخريطة للبحث عنه!", 
+                        bullets: [],
+                        customHtml: `<div class="mt-4 relative w-full h-48 bg-gradient-to-br from-[#5A2010] to-[#2D1005] rounded-xl border-2 border-space-700 cursor-pointer overflow-hidden shadow-inner group" onclick="findVisualTreasure(event)">
+                            <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                            <div id="visualTreasure" class="absolute w-12 h-12 bg-neon-cyan/20 border-2 border-neon-cyan rounded-full hidden flex items-center justify-center shadow-[0_0_25px_#00F0FF] animate-pulse" style="top: 60%; right: 75%; transform: translate(50%, -50%);">
+                                <i class="ph ph-robot text-neon-cyan text-2xl"></i>
+                            </div>
+                            <p class="absolute bottom-3 right-3 text-xs text-white/90 bg-black/60 px-3 py-1.5 rounded-full pointer-events-none">اضغط على الخريطة لاكتشاف المركبة!</p>
+                        </div>`
+                    }
+                },
+                {
+                    icon: 'ph-sun', colorClass: 'text-yellow-400', bgClass: 'bg-yellow-400/10', borderHover: 'hover:border-yellow-400',
+                    en: { 
+                        type: "STEM / Physics", title: "Power Up the Rover", 
+                        desc: "The rover's batteries are empty! Slide to angle the solar panels and catch the sun.", 
+                        customHtml: `<div class="mt-6 text-center">
+                            <input type="range" min="0" max="100" value="0" oninput="updateSolar(this.value)" class="w-full h-2 bg-space-900 rounded-lg appearance-none cursor-pointer">
+                            <div class="mt-6">
+                                <i id="solarRover" class="fa-solid fa-rocket text-6xl text-gray-700 transition-all duration-300"></i>
+                            </div>
+                            <p id="solarMsg" class="text-xs text-gray-500 mt-3 font-tech uppercase">0% Power</p>
+                        </div>`
+                    },
+                    ar: { 
+                        type: "علوم وتطبيق", title: "شحن المركبة", 
+                        desc: "بطاريات المركبة فارغة! حرك المؤشر لتوجيه الألواح الشمسية وجمع الطاقة.", 
+                        customHtml: `<div class="mt-6 text-center">
+                            <input type="range" min="0" max="100" value="0" oninput="updateSolar(this.value)" class="w-full h-2 bg-space-900 rounded-lg appearance-none cursor-pointer">
+                            <div class="mt-6">
+                                <i id="solarRover" class="fa-solid fa-rocket text-6xl text-gray-700 transition-all duration-300"></i>
+                            </div>
+                            <p id="solarMsg" class="text-xs text-gray-500 mt-3 font-tech uppercase">0% طاقة</p>
+                        </div>`
+                    }
+                },
+                {
+                    icon: 'ph-stars', colorClass: 'text-neon-pink', bgClass: 'bg-neon-pink/10', borderHover: 'hover:border-neon-pink',
+                    en: { 
+                        type: "History / Story", title: "Uncover the Artifact", 
+                        desc: "Click the empty space to unearth a hidden historical artifact left by astronauts.", 
+                        customHtml: `<div class="mt-4 relative h-32 bg-space-900 border border-space-700 border-dashed rounded-xl flex items-center justify-center cursor-pointer hover:bg-space-700 transition-colors" onclick="revealConstellation(this)">
+                            <span class="text-gray-500 text-sm font-bold pointer-events-none">Click to Excavate <i class="fa-solid fa-trowel ml-1"></i></span>
+                        </div>`
+                    },
+                    ar: { 
+                        type: "تاريخ وقصة", title: "اكتشف الأثر", 
+                        desc: "اضغط على المساحة الفارغة للتنقيب واكتشاف أثر تاريخي تركه رواد الفضاء.", 
+                        customHtml: `<div class="mt-4 relative h-32 bg-space-900 border border-space-700 border-dashed rounded-xl flex items-center justify-center cursor-pointer hover:bg-space-700 transition-colors" onclick="revealConstellation(this)">
+                            <span class="text-gray-500 text-sm font-bold pointer-events-none">اضغط للتنقيب <i class="fa-solid fa-trowel mr-1"></i></span>
+                        </div>`
+                    }
+                }
+            ],
+            'age-9-13': [
+                {
+                    icon: 'ph-puzzle-piece', colorClass: 'text-neon-cyan', bgClass: 'bg-neon-cyan/10', borderHover: 'hover:border-neon-cyan',
+                    en: { 
+                        type: "Engineering", title: "Assemble the Rover", 
+                        desc: "Drag and drop the pieces to the assembly zone to rebuild the broken rover.", 
+                        bullets: [],
+                        customHtml: `<div class="mt-6 flex flex-col sm:flex-row gap-4">
+                            <div class="flex gap-3 flex-wrap sm:flex-col justify-center" id="puzzle-pieces">
+                                <div id="piece-wheel" draggable="true" ondragstart="drag(event)" class="w-14 h-14 bg-space-700 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center cursor-move text-2xl hover:border-white transition-colors" title="Rover Wheel">🛞</div>
+                                <div id="piece-panel" draggable="true" ondragstart="drag(event)" class="w-16 h-10 bg-blue-900 border-2 border-blue-400 grid grid-cols-3 gap-0.5 p-0.5 cursor-move hover:border-white transition-colors" title="Solar Panel"><div class="bg-blue-500"></div><div class="bg-blue-500"></div><div class="bg-blue-500"></div></div>
+                                <div id="piece-cam" draggable="true" ondragstart="drag(event)" class="w-12 h-12 bg-gray-300 rounded text-center leading-[3rem] text-2xl cursor-move border-2 border-gray-500 hover:border-white transition-colors" title="Camera">📷</div>
+                            </div>
+                            <div id="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" class="flex-1 min-h-[140px] border-2 border-dashed border-space-700 rounded-xl flex items-center justify-center bg-space-800 text-gray-500 text-sm relative transition-colors shadow-inner flex-wrap content-center gap-2 p-2">
+                                <span id="dropMsg">Drag parts here to assemble</span>
+                            </div>
+                        </div>`
+                    },
+                    ar: { 
+                        type: "هندسة تطبيقية", title: "تجميع المركبة", 
+                        desc: "قم بسحب وإفلات القطع إلى منطقة التجميع لإعادة بناء المركبة المعطلة.", 
+                        bullets: [],
+                        customHtml: `<div class="mt-6 flex flex-col sm:flex-row gap-4">
+                            <div class="flex gap-3 flex-wrap sm:flex-col justify-center" id="puzzle-pieces">
+                                <div id="piece-wheel" draggable="true" ondragstart="drag(event)" class="w-14 h-14 bg-space-700 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center cursor-move text-2xl hover:border-white transition-colors" title="عجلة المركبة">🛞</div>
+                                <div id="piece-panel" draggable="true" ondragstart="drag(event)" class="w-16 h-10 bg-blue-900 border-2 border-blue-400 grid grid-cols-3 gap-0.5 p-0.5 cursor-move hover:border-white transition-colors" title="لوح شمسي"><div class="bg-blue-500"></div><div class="bg-blue-500"></div><div class="bg-blue-500"></div></div>
+                                <div id="piece-cam" draggable="true" ondragstart="drag(event)" class="w-12 h-12 bg-gray-300 rounded text-center leading-[3rem] text-2xl cursor-move border-2 border-gray-500 hover:border-white transition-colors" title="كاميرا">📷</div>
+                            </div>
+                            <div id="dropzone" ondrop="drop(event)" ondragover="allowDrop(event)" class="flex-1 min-h-[140px] border-2 border-dashed border-space-700 rounded-xl flex items-center justify-center bg-space-800 text-gray-500 text-sm relative transition-colors shadow-inner flex-wrap content-center gap-2 p-2">
+                                <span id="dropMsg">اسحب القطع هنا للتجميع</span>
+                            </div>
+                        </div>`
+                    }
+                },
+                {
+                    icon: 'ph-broom', colorClass: 'text-yellow-500', bgClass: 'bg-yellow-500/10', borderHover: 'hover:border-yellow-500',
+                    en: { 
+                        type: "Archaeology", title: "Dust Sweeper", 
+                        desc: "Click the dirt blocks to carefully sweep away the Martian dust and reveal the artifact beneath.", 
+                        customHtml: `<div class="mt-4 relative w-full h-40 bg-black rounded-lg overflow-hidden border-2 border-space-700">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d8/NASA_Mars_Rover.jpg" class="absolute inset-0 w-full h-full object-cover opacity-80">
+                            <div class="absolute inset-0 grid grid-cols-4 grid-rows-3" id="dustGrid"></div>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "علم الآثار", title: "كشط الغبار", 
+                        desc: "انقر على كتل التراب لتنظيف الغبار المريخي بحذر وكشف الأثر المدفون تحتها.", 
+                        customHtml: `<div class="mt-4 relative w-full h-40 bg-black rounded-lg overflow-hidden border-2 border-space-700">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d8/NASA_Mars_Rover.jpg" class="absolute inset-0 w-full h-full object-cover opacity-80">
+                            <div class="absolute inset-0 grid grid-cols-4 grid-rows-3" id="dustGrid"></div>
+                        </div>` 
+                    }
+                },
+                {
+                    icon: 'ph-clock-counter-clockwise', colorClass: 'text-neon-pink', bgClass: 'bg-neon-pink/10', borderHover: 'hover:border-neon-pink',
+                    en: { 
+                        type: "History", title: "Mission Timeline", 
+                        desc: "Click the events in the correct chronological order to restore the mission logs.", 
+                        customHtml: `<div class="mt-4 space-y-3">
+                            <p id="timelineMsg" class="text-neon-cyan font-bold hidden text-sm text-center bg-neon-cyan/20 py-1 rounded"></p>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="selectTimeline(this, 1)" class="w-full text-left px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">2. Landing on Mars</button>
+                                <button onclick="selectTimeline(this, 0)" class="w-full text-left px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">1. Launch from Earth</button>
+                                <button onclick="selectTimeline(this, 3)" class="w-full text-left px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">4. Discovery by Archaeologists</button>
+                                <button onclick="selectTimeline(this, 2)" class="w-full text-left px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">3. Final Signal Received</button>
+                            </div>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "التاريخ", title: "التسلسل الزمني للمهمة", 
+                        desc: "اضغط على الأحداث بالترتيب الزمني الصحيح لاستعادة سجلات المهمة.", 
+                        customHtml: `<div class="mt-4 space-y-3">
+                            <p id="timelineMsg" class="text-neon-cyan font-bold hidden text-sm text-center bg-neon-cyan/20 py-1 rounded"></p>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="selectTimeline(this, 1)" class="w-full text-right px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">2. الهبوط على المريخ</button>
+                                <button onclick="selectTimeline(this, 0)" class="w-full text-right px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">1. الانطلاق من الأرض</button>
+                                <button onclick="selectTimeline(this, 3)" class="w-full text-right px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">4. الاكتشاف عبر علماء الآثار</button>
+                                <button onclick="selectTimeline(this, 2)" class="w-full text-right px-4 py-2 bg-space-800 border border-space-700 rounded text-gray-400 hover:border-white transition-all text-sm font-bold">3. انقطاع الإشارة الأخيرة</button>
+                            </div>
+                        </div>` 
+                    }
+                },
+                {
+                    icon: 'ph-translate', colorClass: 'text-neon-purple', bgClass: 'bg-neon-purple/10', borderHover: 'hover:border-neon-purple', isSpecial: true,
+                    en: { 
+                        type: "Art & Decoding", title: "Space Hieroglyphics", 
+                        quote: `"Just as we clear the golden desert sands to reveal the pharaohs' statues, we brush away the red Martian dust to discover our forgotten rovers."`,
+                        desc: "Translate this ancient robotic binary code: 01001111 01010000 01010000 01011001",
+                        customHtml: `<div class="mt-4 flex gap-2">
+                            <input type="text" id="decodeInput" placeholder="Type answer..." class="flex-1 bg-space-900 border border-space-700 rounded px-3 py-2 text-white font-tech outline-none focus:border-neon-purple">
+                            <button onclick="checkDecode()" class="bg-neon-purple text-white px-4 py-2 rounded font-bold uppercase text-xs">Verify</button>
+                        </div>
+                        <p id="decodeMsg" class="text-xs mt-2 font-tech hidden"></p>` 
+                    },
+                    ar: { 
+                        type: "فن وفك شفرات", title: "هيروغليفية الفضاء", 
+                        quote: `"كما نُزيح رمال الصحراء الذهبية لنكشف عن تماثيل الفراعنة، نقوم اليوم في الفضاء بإزاحة الغبار المريخي الأحمر لنكتشف مركباتنا المنسية."`,
+                        desc: "ترجم هذه الشفرة الثنائية القديمة للروبوت: 01001111 01010000 01010000 01011001",
+                        customHtml: `<div class="mt-4 flex gap-2">
+                            <input type="text" id="decodeInput" placeholder="اكتب الحل (حروف انجليزية)..." class="flex-1 bg-space-900 border border-space-700 rounded px-3 py-2 text-white font-tech outline-none focus:border-neon-purple text-left" dir="ltr">
+                            <button onclick="checkDecode()" class="bg-neon-purple text-white px-4 py-2 rounded font-bold uppercase text-xs">تحقق</button>
+                        </div>
+                        <p id="decodeMsg" class="text-xs mt-2 font-tech hidden"></p>` 
+                    }
+                }
+            ],
+            'age-14-18': [
+                {
+                    icon: 'ph-crosshair', colorClass: 'text-neon-cyan', bgClass: 'bg-neon-cyan/10', borderHover: 'hover:border-neon-cyan',
+                    en: { 
+                        type: "Data Science & Coordinates", title: "Coordinate Radar Scan", 
+                        desc: "Input geological coordinates to scan for the lost Mars probe. (Hint: Try X: 42, Y: 15)", 
+                        bullets: [],
+                        customHtml: `<div class="mt-6 space-y-4">
+                            <div class="flex gap-4 items-center flex-wrap">
+                                <label class="text-xs text-neon-purple font-bold tracking-wider">TARGET X:</label>
+                                <input type="number" id="coordX" min="0" max="100" placeholder="42" class="w-16 bg-space-900 border border-space-700 focus:border-neon-purple outline-none rounded p-2 text-white text-center font-tech">
+                                <label class="text-xs text-neon-purple font-bold tracking-wider">TARGET Y:</label>
+                                <input type="number" id="coordY" min="0" max="100" placeholder="15" class="w-16 bg-space-900 border border-space-700 focus:border-neon-purple outline-none rounded p-2 text-white text-center font-tech">
+                                <button onclick="scanCoordinates()" class="px-4 py-2 bg-neon-purple text-white font-bold rounded shadow-[0_0_15px_rgba(176,38,255,0.4)] hover:bg-transparent hover:shadow-none border border-neon-purple transition-all text-xs uppercase tracking-widest">Scan</button>
+                            </div>
+                            <div class="w-full h-1 bg-space-700 rounded overflow-hidden relative"><div id="scanRadar" class="h-full bg-neon-purple w-0 transition-all duration-700"></div></div>
+                            <p id="scanResult" class="text-sm font-tech text-gray-400 h-5"></p>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "علم البيانات والإحداثيات", title: "مسح راداري للإحداثيات", 
+                        desc: "أدخل الإحداثيات الجيولوجية للبحث عن المسبار المفقود. (تلميح: جرب X: 42 و Y: 15)", 
+                        bullets: [],
+                        customHtml: `<div class="mt-6 space-y-4">
+                            <div class="flex gap-4 items-center flex-wrap">
+                                <label class="text-xs text-neon-purple font-bold tracking-wider">الهدف X:</label>
+                                <input type="number" id="coordX" min="0" max="100" placeholder="42" class="w-16 bg-space-900 border border-space-700 focus:border-neon-purple outline-none rounded p-2 text-white text-center font-tech">
+                                <label class="text-xs text-neon-purple font-bold tracking-wider">الهدف Y:</label>
+                                <input type="number" id="coordY" min="0" max="100" placeholder="15" class="w-16 bg-space-900 border border-space-700 focus:border-neon-purple outline-none rounded p-2 text-white text-center font-tech">
+                                <button onclick="scanCoordinates()" class="px-4 py-2 bg-neon-purple text-white font-bold rounded shadow-[0_0_15px_rgba(176,38,255,0.4)] hover:bg-transparent hover:shadow-none border border-neon-purple transition-all text-xs uppercase tracking-widest">بدء المسح</button>
+                            </div>
+                            <div class="w-full h-1 bg-space-700 rounded overflow-hidden relative"><div id="scanRadar" class="h-full bg-neon-purple w-0 transition-all duration-700"></div></div>
+                            <p id="scanResult" class="text-sm font-tech text-gray-400 h-5"></p>
+                        </div>` 
+                    }
+                },
+                {
+                    icon: 'ph-battery-warning', colorClass: 'text-yellow-500', bgClass: 'bg-yellow-500/10', borderHover: 'hover:border-yellow-500',
+                    en: { 
+                        type: "Physics & Engineering", title: "Power Management", 
+                        desc: "Survive the Martian night! Adjust power. Sum must equal exactly 100%.", 
+                        customHtml: `<div class="mt-4 space-y-3 font-tech text-xs">
+                            <div class="flex justify-between items-center text-gray-300"><span>Heaters</span> <input type="range" id="powHeat" min="0" max="100" value="50" oninput="checkPowerBalance()" class="w-1/2"></div>
+                            <div class="flex justify-between items-center text-gray-300"><span>Comms</span> <input type="range" id="powComm" min="0" max="100" value="30" oninput="checkPowerBalance()" class="w-1/2"></div>
+                            <div class="flex justify-between items-center text-gray-300"><span>Sensors</span> <input type="range" id="powSens" min="0" max="100" value="20" oninput="checkPowerBalance()" class="w-1/2"></div>
+                            <p id="powMsg" class="text-neon-cyan font-bold mt-2 text-center uppercase tracking-widest border-t border-space-700 pt-2">SYSTEM STABLE (100%)</p>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "هندسة وفيزياء", title: "إدارة الطاقة", 
+                        desc: "عِش ليلة مريخية! وازن الطاقة بين الأنظمة. يجب أن يكون المجموع 100% بالضبط.", 
+                        customHtml: `<div class="mt-4 space-y-3 font-tech text-xs">
+                            <div class="flex justify-between items-center text-gray-300"><span>السخانات</span> <input type="range" id="powHeat" min="0" max="100" value="50" oninput="checkPowerBalance()" class="w-1/2" dir="ltr"></div>
+                            <div class="flex justify-between items-center text-gray-300"><span>الاتصالات</span> <input type="range" id="powComm" min="0" max="100" value="30" oninput="checkPowerBalance()" class="w-1/2" dir="ltr"></div>
+                            <div class="flex justify-between items-center text-gray-300"><span>المستشعرات</span> <input type="range" id="powSens" min="0" max="100" value="20" oninput="checkPowerBalance()" class="w-1/2" dir="ltr"></div>
+                            <p id="powMsg" class="text-neon-cyan font-bold mt-2 text-center uppercase tracking-widest border-t border-space-700 pt-2">النظام مستقر (100%)</p>
+                        </div>` 
+                    }
+                },
+                {
+                    icon: 'ph-scales', colorClass: 'text-neon-purple', bgClass: 'bg-neon-purple/10', borderHover: 'hover:border-neon-purple',
+                    en: { 
+                        type: "Space Law", title: "Heritage Classification", 
+                        desc: "How do we legally define Apollo 11's landing site?", 
+                        customHtml: `<div class="mt-4">
+                            <select onchange="checkLaw(this)" class="w-full bg-space-900 border border-space-700 rounded px-4 py-3 text-white outline-none focus:border-neon-purple">
+                                <option value="">Select legal classification...</option>
+                                <option value="debris">Space Debris (No Protection)</option>
+                                <option value="heritage">Universal Human Heritage (Protected)</option>
+                                <option value="property">Abandoned State Property</option>
+                            </select>
+                            <p id="lawMsg" class="mt-3 text-sm font-bold hidden"></p>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "قانون الفضاء", title: "تصنيف التراث", 
+                        desc: "كيف نُصنف موقع هبوط أبولو 11 قانونياً؟", 
+                        customHtml: `<div class="mt-4">
+                            <select onchange="checkLaw(this)" class="w-full bg-space-900 border border-space-700 rounded px-4 py-3 text-white outline-none focus:border-neon-purple">
+                                <option value="">اختر التصنيف القانوني...</option>
+                                <option value="debris">حطام فضائي (غير محمي)</option>
+                                <option value="heritage">تراث إنساني عالمي (محمي)</option>
+                                <option value="property">ممتلكات دولة مهجورة</option>
+                            </select>
+                            <p id="lawMsg" class="mt-3 text-sm font-bold hidden"></p>
+                        </div>` 
+                    }
+                },
+                {
+                    icon: 'ph-terminal-window', colorClass: 'text-neon-pink', bgClass: 'bg-neon-pink/10', borderHover: 'hover:border-neon-pink',
+                    en: { 
+                        type: "Storytelling", title: "Transmit Final Log", 
+                        desc: "Write the final 140-character message of a dying rover to Earth.", 
+                        customHtml: `<div class="mt-4">
+                            <textarea id="logInput" maxlength="140" rows="2" class="w-full bg-space-900 border border-space-700 rounded px-3 py-2 text-white outline-none focus:border-neon-pink text-sm font-mono placeholder-gray-600" placeholder="Type final transmission..."></textarea>
+                            <button onclick="transmitLog()" class="mt-2 bg-space-700 hover:bg-neon-pink text-white px-4 py-1.5 rounded text-xs font-bold uppercase transition-colors">Send to Deep Space Network</button>
+                            <div id="logScreen" class="mt-4 bg-black p-3 rounded border border-space-700 font-tech text-xs text-gray-500 min-h-[60px]">
+                                &gt; WAITING FOR SIGNAL...<span class="animate-pulse">_</span>
+                            </div>
+                        </div>` 
+                    },
+                    ar: { 
+                        type: "السرد القصصي", title: "إرسال السجل الأخير", 
+                        desc: "اكتب الرسالة الأخيرة (140 حرف) لمركبة تودع الأرض قبل أن تنطفئ.", 
+                        customHtml: `<div class="mt-4">
+                            <textarea id="logInput" maxlength="140" rows="2" class="w-full bg-space-900 border border-space-700 rounded px-3 py-2 text-white outline-none focus:border-neon-pink text-sm font-mono placeholder-gray-600" placeholder="اكتب الرسالة الأخيرة..."></textarea>
+                            <button onclick="transmitLog()" class="mt-2 bg-space-700 hover:bg-neon-pink text-white px-4 py-1.5 rounded text-xs font-bold uppercase transition-colors">إرسال لشبكة الفضاء العميق</button>
+                            <div id="logScreen" class="mt-4 bg-black p-3 rounded border border-space-700 font-tech text-xs text-gray-500 min-h-[60px]" dir="ltr">
+                                &gt; WAITING FOR SIGNAL...<span class="animate-pulse">_</span>
+                            </div>
+                        </div>` 
+                    }
+                }
+            ]
+        };
+
+        // --- Core Functions ---
+
+        function showTooltip(e, artifactId) {
+            const tooltip = document.getElementById('map-tooltip');
+            const img = document.getElementById('tooltip-img');
+            const text = document.getElementById('tooltip-text');
+            const artBase = artifacts[artifactId];
+            const data = artBase[currentLang];
+
+            img.src = artBase.image;
+            text.innerText = data.title;
+            tooltip.style.borderColor = artBase.color;
+            img.style.borderColor = artBase.color + '80'; // 50% opacity border
+
+            const marker = e.currentTarget;
+            const markerRect = marker.getBoundingClientRect();
+            const container = document.querySelector('.map-container');
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate precise coordinates relative to the map container
+            const left = markerRect.left - containerRect.left + (markerRect.width / 2);
+            const top = markerRect.top - containerRect.top;
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = (top - 10) + 'px'; // Float slightly above the marker
+
+            tooltip.classList.remove('opacity-0', 'invisible');
+            tooltip.classList.add('opacity-100', 'visible');
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('map-tooltip');
+            if(tooltip) {
+                tooltip.classList.add('opacity-0', 'invisible');
+                tooltip.classList.remove('opacity-100', 'visible');
+            }
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'ar' : 'en';
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = currentLang;
+            
+            updateUIStrings();
+            renderSidebar();
+            renderLabContent(currentLabTab);
+            
+            if (currentActiveArtifact) {
+                openDetails(currentActiveArtifact, true); // Re-render active details without hologram
+            }
+        }
+
+        function updateUIStrings() {
+            const strings = uiStrings[currentLang];
+            document.getElementById('ui-title').innerText = strings.title;
+            document.getElementById('ui-tab-map').innerText = strings.tabMap;
+            document.getElementById('ui-tab-lab').innerText = strings.tabLab;
+            document.getElementById('lang-btn-text').innerText = strings.langBtn;
+            document.getElementById('ui-scan').innerText = strings.scan;
+            document.getElementById('ui-db-conn').innerText = strings.dbConn;
+            document.getElementById('ui-mission-log').innerText = strings.missionLog;
+            document.getElementById('ui-lifespan').innerText = strings.lifespan;
+            document.getElementById('ui-lab-title').innerText = strings.labTitle;
+            document.getElementById('ui-lab-desc').innerText = strings.labDesc;
+            
+            document.getElementById('welcome-title').innerText = strings.welcomeTitle;
+            document.getElementById('welcome-subtitle').innerText = strings.welcomeSubtitle;
+            document.getElementById('welcome-start').innerText = strings.welcomeStart;
+            document.getElementById('welcome-lang-btn').innerText = strings.welcomeLangBtn;
+            
+            document.querySelectorAll('.yr').forEach(el => el.innerText = strings.years);
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('sidebar-list');
+            container.innerHTML = `<h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="ph ph-list-magnifying-glass"></i> ${uiStrings[currentLang].archListTitle}
+                </h3>`;
+            
+            Object.values(artifacts).forEach(art => {
+                const data = art[currentLang];
+                let hoverColor = art.color === '#00F0FF' ? 'hover:border-neon-cyan hover:bg-neon-cyan/5' : 
+                                 (art.color === '#B026FF' ? 'hover:border-neon-purple hover:bg-neon-purple/5' : 'hover:border-gray-300 hover:bg-white/5');
+                
+                let textCol = art.color === '#00F0FF' ? 'text-neon-cyan' : 
+                             (art.color === '#B026FF' ? 'text-neon-purple' : 'text-gray-400');
+
+                // Adjust alignment based on direction
+                let textDir = currentLang === 'ar' ? 'text-right' : 'text-left';
+
+                container.innerHTML += `
+                    <button onclick="openDetails('${art.id}')" class="w-full ${textDir} px-4 py-3 rounded-lg border border-space-700 ${hoverColor} transition-all flex flex-col gap-1">
+                        <span class="font-bold text-white">${data.title}</span>
+                        <span class="text-xs ${textCol}">${data.listLoc}</span>
+                    </button>
+                `;
+            });
+        }
+
+        function switchMainView(viewId) {
+            hideTooltip(); // Hide tooltip if visible when changing views
+            document.getElementById('map-view').classList.add('hidden');
+            document.getElementById('lab-view').classList.add('hidden');
+            document.getElementById('map-view').classList.remove('flex');
+            
+            if (viewId === 'map-view') {
+                document.getElementById('map-view').classList.remove('hidden');
+                document.getElementById('map-view').classList.add('flex');
+            } else {
+                document.getElementById('lab-view').classList.remove('hidden');
+            }
+            
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('tab-' + viewId).classList.add('active');
+        }
+
+        function switchLabTab(tabId) {
+            currentLabTab = tabId;
+            
+            // Define theme colors based on age group
+            let themeColor, glowColor;
+            if (tabId === 'age-5-8') {
+                themeColor = '#00F0FF'; // Cyan
+                glowColor = 'rgba(0, 240, 255, 0.15)';
+            } else if (tabId === 'age-9-13') {
+                themeColor = '#EAB308'; // Yellow
+                glowColor = 'rgba(234, 179, 8, 0.15)';
+            } else if (tabId === 'age-14-18') {
+                themeColor = '#B026FF'; // Purple
+                glowColor = 'rgba(176, 38, 255, 0.15)';
+            }
+
+            // Apply global CSS variables for the active theme
+            document.documentElement.style.setProperty('--active-tab-color', themeColor);
+            document.documentElement.style.setProperty('--active-tab-glow', glowColor);
+
+            // Update the lab title icon color
+            const titleIcon = document.getElementById('lab-title-icon');
+            if(titleIcon) titleIcon.style.color = themeColor;
+
+            // Reset all tabs
+            document.querySelectorAll('.lab-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activate the selected tab
+            const activeTab = document.getElementById('tab-' + tabId);
+            activeTab.classList.add('active');
+            
+            renderLabContent(tabId);
+            initInteractivity(tabId);
+        }
+
+        function renderLabContent(tabId) {
+            const container = document.getElementById('lab-content-container');
+            container.innerHTML = '';
+            piecesAssembled = 0; // Reset drag and drop puzzle state
+            
+            // Avatar Configurations based on Age Group
+            let avatarHtml = '';
+            const strings = uiStrings[currentLang];
+            
+            if (tabId === 'age-5-8') {
+                avatarHtml = `
+                    <div class="col-span-1 md:col-span-2 flex items-center gap-4 mb-4 bg-space-800 p-5 rounded-2xl border border-space-700 shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-neon-cyan/20 flex items-center justify-center border-2 border-neon-cyan flex-shrink-0 relative">
+                            <i class="fa-solid fa-user-astronaut text-3xl text-neon-cyan"></i>
+                            <div class="absolute -bottom-2 -end-2 bg-space-900 rounded-full p-1.5 border border-space-700">
+                                <i class="fa-solid fa-paintbrush text-neon-pink text-sm"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-white">${strings.avatar1Title}</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">${strings.avatar1Desc}</p>
+                        </div>
+                    </div>`;
+            } else if (tabId === 'age-9-13') {
+                avatarHtml = `
+                    <div class="col-span-1 md:col-span-2 flex items-center gap-4 mb-4 bg-space-800 p-5 rounded-2xl border border-space-700 shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center border-2 border-yellow-500 flex-shrink-0 relative">
+                            <i class="fa-solid fa-user-astronaut text-3xl text-yellow-500"></i>
+                            <div class="absolute -bottom-2 -end-2 bg-space-900 rounded-full p-1.5 border border-space-700">
+                                <i class="fa-solid fa-compass text-neon-cyan text-sm"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-white">${strings.avatar2Title}</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">${strings.avatar2Desc}</p>
+                        </div>
+                    </div>`;
+            } else if (tabId === 'age-14-18') {
+                avatarHtml = `
+                    <div class="col-span-1 md:col-span-2 flex items-center gap-4 mb-4 bg-space-800 p-5 rounded-2xl border border-space-700 shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-neon-purple/20 flex items-center justify-center border-2 border-neon-purple flex-shrink-0 relative">
+                            <i class="fa-solid fa-user-astronaut text-3xl text-neon-purple"></i>
+                            <div class="absolute -bottom-2 -end-2 bg-space-900 rounded-full p-1.5 border border-space-700">
+                                <i class="fa-solid fa-satellite-dish text-neon-pink text-sm"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-white">${strings.avatar3Title}</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">${strings.avatar3Desc}</p>
+                        </div>
+                    </div>`;
+            }
+            
+            container.innerHTML += avatarHtml;
+
+            labActivities[tabId].forEach(act => {
+                const data = act[currentLang];
+                let html = '';
+
+                if (act.isSpecial) {
+                    // The poetic block for 9-13
+                    html = `
+                    <div class="bg-space-800 border border-space-700 rounded-2xl p-8 ${act.borderHover} transition-colors shadow-lg relative overflow-hidden">
+                        <div class="absolute top-0 start-0 w-48 h-48 bg-neon-pink rounded-full blur-[80px] opacity-10 -translate-x-1/4 -translate-y-1/4"></div>
+                        <div class="w-14 h-14 rounded-xl ${act.bgClass} ${act.colorClass} flex items-center justify-center text-3xl mb-6 relative z-10">
+                            <i class="ph ${act.icon}"></i>
+                        </div>
+                        <span class="text-xs font-bold ${act.colorClass} uppercase tracking-wider mb-2 block relative z-10">${data.type}</span>
+                        <h3 class="text-2xl font-bold text-white mb-4 relative z-10">${data.title}</h3>
+                        
+                        <div class="bg-neon-pink/5 border-s-4 border-neon-pink p-4 my-4 rounded-e-lg relative z-10">
+                            <p class="text-gray-300 text-sm leading-relaxed italic font-serif">
+                                ${data.quote}
+                            </p>
+                        </div>
+                        <p class="text-gray-400 text-sm relative z-10">${data.desc}</p>
+                        ${data.customHtml || ''}
+                    </div>`;
+                } else {
+                    let bulletsHtml = data.bullets ? data.bullets.map(b => `<li>${b}</li>`).join('') : '';
+                    let bulletsSection = bulletsHtml ? `<ul class="text-gray-500 text-sm list-disc list-inside space-y-1 ms-2 mt-4">${bulletsHtml}</ul>` : '';
+                    
+                    html = `
+                    <div class="bg-space-800 border border-space-700 rounded-2xl p-8 ${act.borderHover} transition-colors shadow-lg">
+                        <div class="w-14 h-14 rounded-xl ${act.bgClass} ${act.colorClass} flex items-center justify-center text-3xl mb-6">
+                            <i class="ph ${act.icon}"></i>
+                        </div>
+                        <span class="text-xs font-bold ${act.colorClass} uppercase tracking-wider mb-2 block">${data.type}</span>
+                        <h3 class="text-2xl font-bold text-white mb-4">${data.title}</h3>
+                        <p class="text-gray-400 text-sm leading-relaxed">${data.desc}</p>
+                        ${bulletsSection}
+                        ${data.customHtml || ''}
+                    </div>`;
+                }
+                container.innerHTML += html;
+            });
+        }
+
+        function openDetails(artifactId, skipHolo = false) {
+            currentActiveArtifact = artifactId;
+            const artBase = artifacts[artifactId];
+            const data = artBase[currentLang];
+
+            document.getElementById('det-img').src = artBase.image;
+            document.getElementById('det-status').textContent = data.status;
+            document.getElementById('det-title').textContent = data.title;
+            document.getElementById('det-subtitle').textContent = data.subtitle;
+            document.getElementById('det-story').textContent = data.story;
+            
+            // Adjust label colors based on artifact theme
+            document.getElementById('det-status').style.color = artBase.color;
+            document.getElementById('det-status').style.borderColor = artBase.color;
+            document.getElementById('det-status').style.backgroundColor = artBase.color + '20'; // 20% opacity
+
+            // If we only want to update the data (like when changing language), skip the animation
+            if (skipHolo) {
+                document.getElementById('detailsPanel').classList.add('open');
+                renderChart(artBase, data);
+                return;
+            }
+
+            // Cinematic Hologram Reveal
+            const holoOverlay = document.getElementById('hologram-overlay');
+            const holoImg = document.getElementById('holo-img');
+            const holoText = document.getElementById('holo-text');
+
+            holoText.innerText = currentLang === 'en' ? "Reconstructing Artifact..." : "جاري إعادة بناء الأثر...";
+            holoText.style.color = artBase.color;
+            
+            holoImg.src = artBase.image;
+            holoImg.style.filter = `drop-shadow(0 0 25px ${artBase.color})`;
+            
+            // Adjust hologram base colors to match the artifact
+            document.getElementById('holo-glow').style.backgroundColor = artBase.color + '33'; // ~20% opacity
+            document.getElementById('holo-base').style.borderColor = artBase.color + '80'; // ~50% opacity
+            document.getElementById('holo-base').style.boxShadow = `0 0 20px ${artBase.color}`;
+            
+            document.querySelectorAll('#holo-dots .dot-color').forEach(dot => {
+                dot.style.backgroundColor = artBase.color;
+            });
+
+            holoImg.classList.remove('holo-anim');
+            void holoImg.offsetWidth; // Trigger reflow to restart animation
+            
+            holoOverlay.classList.remove('hidden');
+            holoOverlay.classList.add('flex');
+            holoImg.classList.add('holo-anim');
+
+            // Wait 2.5 seconds for animation to complete before showing panel
+            setTimeout(() => {
+                holoOverlay.classList.add('hidden');
+                holoOverlay.classList.remove('flex');
+                
+                document.getElementById('detailsPanel').classList.add('open');
+                renderChart(artBase, data);
+            }, 2500);
+        }
+
+        function closeDetails() {
+            currentActiveArtifact = null;
+            document.getElementById('detailsPanel').classList.remove('open');
+        }
+
+        function renderChart(artBase, localizedData) {
+            const ctx = document.getElementById('lifespanChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            Chart.defaults.color = '#94A3B8';
+            Chart.defaults.font.family = 'Inter, Cairo';
+
+            const labelExpected = currentLang === 'en' ? 'Planned Mission' : 'العمر المتوقع';
+            const labelActual = currentLang === 'en' ? 'Actual Lifespan' : 'العمر الفعلي';
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [labelExpected, labelActual],
+                    datasets: [{
+                        data: [artBase.expected, artBase.actual],
+                        backgroundColor: [
+                            'rgba(255, 255, 255, 0.2)',
+                            artBase.color + 'CC'
+                        ],
+                        borderColor: [
+                            'rgba(255, 255, 255, 0.5)',
+                            artBase.color
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            type: (artBase.actual > 500) ? 'logarithmic' : 'linear'
+                        },
+                        y: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    if (artBase.id === 'apollo11' && context.dataIndex === 1) {
+                                        return currentLang === 'en' ? 'Eternal Monument' : 'نصب تاريخي أبدي';
+                                    }
+                                    return val + ' ' + localizedData.unit;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStars() {
+            const canvas = document.getElementById('stars-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            let width, height;
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            const stars = [];
+            const numStars = 500;
+            for (let i = 0; i < numStars; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 1.5 + 0.5,
+                    vx: 0,
+                    vy: (Math.random() * 0.5) - 0.25,
+                    twinkleSpeed: Math.random() * 0.02 + 0.005,
+                    alpha: Math.random(),
+                    alphaDir: Math.random() > 0.5 ? 1 : -1
+                });
+            }
+
+            const meteors = [];
+            function createMeteor() {
+                meteors.push({
+                    x: Math.random() * width * 1.5,
+                    y: -50,
+                    length: Math.random() * 100 + 40,
+                    speed: Math.random() * 15 + 10,
+                    angle: Math.PI / 4 + (Math.random() * 0.2 - 0.1),
+                    alpha: 1
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                
+                // Draw stars
+                stars.forEach(star => {
+                    star.alpha += star.twinkleSpeed * star.alphaDir;
+                    if (star.alpha <= 0.1) {
+                        star.alpha = 0.1;
+                        star.alphaDir = 1;
+                    } else if (star.alpha >= 1) {
+                        star.alpha = 1;
+                        star.alphaDir = -1;
+                    }
+                    
+                    star.y += star.vy;
+                    if (star.y < 0) star.y = height;
+                    if (star.y > height) star.y = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                    ctx.fill();
+                });
+
+                // Create meteors frequently (15% chance per frame for lots of meteors)
+                if (Math.random() < 0.15) { 
+                    createMeteor();
+                }
+
+                // Draw meteors
+                for (let i = meteors.length - 1; i >= 0; i--) {
+                    let m = meteors[i];
+                    m.x -= m.speed * Math.cos(m.angle);
+                    m.y += m.speed * Math.sin(m.angle);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(m.x, m.y);
+                    ctx.lineTo(m.x + m.length * Math.cos(m.angle), m.y - m.length * Math.sin(m.angle));
+                    
+                    let grad = ctx.createLinearGradient(m.x, m.y, m.x + m.length * Math.cos(m.angle), m.y - m.length * Math.sin(m.angle));
+                    grad.addColorStop(0, `rgba(255, 255, 255, ${m.alpha})`);
+                    grad.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                    
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    if (m.y > height + 100 || m.x < -100) {
+                        meteors.splice(i, 1);
+                    }
+                }
+
+                // Continue animation only if the splash screen is visible
+                if (document.getElementById('welcome-screen').style.display !== 'none') {
+                    requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        // --- Interactive Activities Handlers ---
+
+        function initInteractivity(tabId) {
+            if(tabId === 'age-5-8') {
+                setTimeout(() => {
+                    const canvas = document.getElementById('drawCanvas');
+                    if(canvas) {
+                        ctxCanvas = canvas.getContext('2d');
+                        // Set proper dimensions for canvas element
+                        const rect = canvas.getBoundingClientRect();
+                        canvas.width = rect.width;
+                        canvas.height = rect.height;
+
+                        const getPos = (e) => {
+                            const bRect = canvas.getBoundingClientRect();
+                            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                            return { x: clientX - bRect.left, y: clientY - bRect.top };
+                        };
+
+                        const startDraw = (e) => { isDrawing = true; draw(e); };
+                        const stopDraw = () => { isDrawing = false; ctxCanvas.beginPath(); };
+                        const draw = (e) => {
+                            if(!isDrawing) return;
+                            e.preventDefault(); // Prevent scrolling on mobile
+                            const pos = getPos(e);
+                            ctxCanvas.lineWidth = 5;
+                            ctxCanvas.lineCap = 'round';
+                            ctxCanvas.strokeStyle = document.getElementById('colorPicker').value;
+                            ctxCanvas.lineTo(pos.x, pos.y);
+                            ctxCanvas.stroke();
+                            ctxCanvas.beginPath();
+                            ctxCanvas.moveTo(pos.x, pos.y);
+                        };
+
+                        // Mouse Events
+                        canvas.addEventListener('mousedown', startDraw);
+                        window.addEventListener('mouseup', stopDraw);
+                        canvas.addEventListener('mousemove', draw);
+                        // Touch Events
+                        canvas.addEventListener('touchstart', startDraw, {passive: false});
+                        window.addEventListener('touchend', stopDraw);
+                        canvas.addEventListener('touchmove', draw, {passive: false});
+                    }
+                }, 100);
+            } else if (tabId === 'age-9-13') {
+                timelineStep = 0;
+                initDustSweeper();
+            }
+        }
+
+        function clearCanvas() {
+            if(ctxCanvas) {
+                const canvas = document.getElementById('drawCanvas');
+                ctxCanvas.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function findVisualTreasure(e) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            // Get click coordinates relative to the container
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Define target area based on RTL/LTR and CSS placement 
+            // In CSS, target is set roughly to top:60%, left:75% (EN) or right:75% (AR)
+            const targetX = currentLang === 'ar' ? rect.width * 0.25 : rect.width * 0.75;
+            const targetY = rect.height * 0.60;
+            
+            const dist = Math.sqrt(Math.pow(x - targetX, 2) + Math.pow(y - targetY, 2));
+            
+            if(dist < 60) {
+                document.getElementById('visualTreasure').classList.remove('hidden');
+            }
+        }
+
+        // New Age 5-8 Interactions
+        function updateSolar(val) {
+            const rover = document.getElementById('solarRover');
+            const msg = document.getElementById('solarMsg');
+            if(!rover) return;
+            let intensity = val / 100;
+            rover.style.color = `rgba(${113 + (intensity*142)}, ${113 + (intensity*127)}, ${113 + (intensity*142)}, 1)`; // transitions to white-ish
+            rover.style.filter = `drop-shadow(0 0 ${val/3}px #00F0FF)`;
+            rover.style.transform = `translateY(-${val/5}px) scale(${1 + (val/500)})`;
+            msg.innerText = currentLang === 'en' ? `${val}% Power` : `${val}% طاقة`;
+            if (val == 100) {
+                msg.style.color = '#00F0FF';
+                msg.innerText = currentLang === 'en' ? 'FULLY CHARGED!' : 'تم الشحن بالكامل!';
+            } else {
+                msg.style.color = '#6b7280';
+            }
+        }
+
+        function revealConstellation(el) {
+            el.innerHTML = '<i class="fa-solid fa-satellite text-5xl text-yellow-400 drop-shadow-[0_0_15px_#FBBF24] animate-bounce"></i>';
+            el.classList.add('bg-space-800');
+            el.classList.remove('border-dashed');
+        }
+
+        // New Age 9-13 Interactions
+        function initDustSweeper() {
+            const grid = document.getElementById('dustGrid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            for(let i=0; i<12; i++) {
+                const div = document.createElement('div');
+                div.className = 'bg-[#8B4513] border border-[#A0522D] cursor-pointer hover:opacity-75 transition-all duration-300';
+                div.onclick = function() { this.style.opacity = '0'; this.style.pointerEvents = 'none'; };
+                grid.appendChild(div);
+            }
+        }
+
+        function selectTimeline(btn, correctStep) {
+            if(correctStep === timelineStep) {
+                btn.classList.replace('bg-space-800', 'bg-neon-cyan');
+                btn.classList.replace('text-gray-400', 'text-black');
+                btn.disabled = true;
+                timelineStep++;
+                if(timelineStep === 4) {
+                    const msg = document.getElementById('timelineMsg');
+                    msg.innerText = currentLang === 'en' ? 'TIMELINE RESTORED SUCCESSFULLY!' : 'تم استعادة التسلسل الزمني بنجاح!';
+                    msg.classList.remove('hidden');
+                }
+            } else {
+                btn.classList.add('border-neon-pink', 'text-neon-pink');
+                setTimeout(() => {
+                    btn.classList.remove('border-neon-pink', 'text-neon-pink');
+                }, 500);
+            }
+        }
+
+        function checkDecode() {
+            const input = document.getElementById('decodeInput').value.trim().toUpperCase();
+            const msg = document.getElementById('decodeMsg');
+            msg.classList.remove('hidden');
+            if(input === 'OPPY') {
+                msg.innerText = currentLang === 'en' ? 'CORRECT! It spells OPPY.' : 'صحيح! الكلمة هي OPPY.';
+                msg.className = 'text-xs mt-2 font-tech text-neon-cyan font-bold block';
+            } else {
+                msg.innerText = currentLang === 'en' ? 'INCORRECT TRANSLATION.' : 'ترجمة غير صحيحة.';
+                msg.className = 'text-xs mt-2 font-tech text-neon-pink font-bold block animate-pulse';
+            }
+        }
+
+        // New Age 14-18 Interactions
+        function checkPowerBalance() {
+            const heat = parseInt(document.getElementById('powHeat').value);
+            const comm = parseInt(document.getElementById('powComm').value);
+            const sens = parseInt(document.getElementById('powSens').value);
+            const total = heat + comm + sens;
+            const msg = document.getElementById('powMsg');
+            
+            if(total === 100) {
+                msg.innerText = currentLang === 'en' ? "SYSTEM STABLE (100%)" : "النظام مستقر (100%)";
+                msg.className = "text-neon-cyan font-bold mt-2 text-center uppercase tracking-widest border-t border-space-700 pt-2";
+            } else if (total > 100) {
+                msg.innerText = currentLang === 'en' ? `OVERLOAD DETECTED (${total}%)` : `رصد حمل زائد (${total}%)`;
+                msg.className = "text-neon-pink font-bold mt-2 text-center uppercase tracking-widest border-t border-space-700 pt-2 animate-pulse";
+            } else {
+                msg.innerText = currentLang === 'en' ? `POWER LOW (${total}%)` : `طاقة منخفضة (${total}%)`;
+                msg.className = "text-yellow-500 font-bold mt-2 text-center uppercase tracking-widest border-t border-space-700 pt-2";
+            }
+        }
+
+        function checkLaw(select) {
+            const msg = document.getElementById('lawMsg');
+            msg.classList.remove('hidden');
+            if (select.value === 'heritage') {
+                msg.innerText = currentLang === 'en' ? "CORRECT. International consensus leans towards protecting these sites as human heritage." : "صحيح. الإجماع الدولي يميل لحماية هذه المواقع كتراث إنساني.";
+                msg.className = "mt-3 text-sm font-bold text-neon-cyan";
+            } else {
+                msg.innerText = currentLang === 'en' ? "INCORRECT. Leaving it unprotected risks destruction by future missions." : "غير دقيق. تركها بلا حماية يعرضها للدمار من مهام مستقبلية.";
+                msg.className = "mt-3 text-sm font-bold text-neon-pink";
+            }
+        }
+
+        function transmitLog() {
+            const text = document.getElementById('logInput').value;
+            const screen = document.getElementById('logScreen');
+            if(!text) return;
+            
+            screen.innerHTML = `<span class="text-yellow-500">[TRANSMISSION SENT TO DSN]</span><br>
+                <span class="text-neon-cyan">"${text}"</span><br>
+                <span class="text-gray-500">SIGNAL LOST...</span><span class="animate-pulse">_</span>`;
+            document.getElementById('logInput').value = '';
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('border-neon-cyan', 'bg-space-700');
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('border-neon-cyan', 'bg-space-700');
+            const data = ev.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+            
+            if(draggedElement) {
+                ev.currentTarget.appendChild(draggedElement);
+                draggedElement.style.margin = "4px";
+                draggedElement.style.display = "inline-block";
+                draggedElement.removeAttribute('draggable');
+                draggedElement.classList.remove('cursor-move');
+                
+                document.getElementById('dropMsg').style.display = 'none';
+                ev.currentTarget.classList.add('border-solid', 'border-neon-cyan');
+                
+                piecesAssembled++;
+                if (piecesAssembled >= 3) {
+                    setTimeout(() => {
+                        const msg = currentLang === 'en' ? 'Rover Assembled! Excellent job.' : 'تم تجميع المركبة بنجاح! عمل رائع.';
+                        document.getElementById('dropMsg').innerText = msg;
+                        document.getElementById('dropMsg').style.display = 'block';
+                        document.getElementById('dropMsg').style.color = '#00F0FF';
+                        document.getElementById('dropMsg').classList.add('font-bold', 'text-lg', 'w-full', 'text-center');
+                    }, 300);
+                }
+            }
+        }
+
+        function scanCoordinates() {
+            const x = parseInt(document.getElementById('coordX').value);
+            const y = parseInt(document.getElementById('coordY').value);
+            const radar = document.getElementById('scanRadar');
+            const resultMsg = document.getElementById('scanResult');
+            
+            radar.style.width = '100%';
+            resultMsg.innerText = currentLang === 'en' ? "Scanning planetary sector..." : "جاري مسح القطاع الكوكبي...";
+            resultMsg.style.color = '#9ca3af'; // text-gray-400
+            
+            setTimeout(() => {
+                radar.style.width = '0%';
+                if (x === 42 && y === 15) {
+                    resultMsg.innerText = currentLang === 'en' ? "ANOMALY DETECTED! Lost probe found at coordinates." : "تم رصد إشارة! العثور على المسبار المفقود.";
+                    resultMsg.style.color = '#00F0FF';
+                } else {
+                    resultMsg.innerText = currentLang === 'en' ? "Sector clear. No artifacts found. Try X: 42, Y: 15" : "القطاع خالي. لم يتم العثور على أثر. جرب X: 42, Y: 15";
+                    resultMsg.style.color = '#FF2A6D'; // neon pink
+                }
+            }, 800);
+        }
+
+        // Initialize
+        window.onload = () => {
+            createStars();
+            updateUIStrings();
+            renderSidebar();
+            switchLabTab(currentLabTab); // Ensures colors and content load correctly
+        };
+
+    </script>
+</body>
+</html>
